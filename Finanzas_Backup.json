@@ -1,0 +1,509 @@
+{
+  "setupComplete": true,
+  "emergencyGoal": 5000,
+  "categoryGroups": {
+    "basicos": {
+      "name": "Gastos Básicos",
+      "percent": 20,
+      "categories": [
+        "Alquiler",
+        "Transporte",
+        "Salud"
+      ]
+    },
+    "ocio": {
+      "name": "Ocio",
+      "percent": 15,
+      "categories": [
+        "Restaurantes",
+        "Ocio",
+        "Viajes",
+        "Compra Online",
+        "Comida",
+        "Ropa",
+        "Otros"
+      ]
+    },
+    "inversion": {
+      "name": "Inversión",
+      "percent": 65,
+      "categories": [
+        "Colchón",
+        "S&P500",
+        "Take-Two"
+      ]
+    }
+  },
+  "transactions": [
+    {
+      "id": 1765930955091,
+      "type": "income",
+      "month": "2025-11",
+      "amount": 1500,
+      "category": "Salario",
+      "account": "Efectivo",
+      "description": "nomina restante",
+      "date": "2025-12-17T00:22:35.091Z"
+    },
+    {
+      "id": 1765931018620,
+      "type": "income",
+      "month": "2025-11",
+      "amount": 1092.32,
+      "category": "Salario",
+      "account": "Cuenta Corriente",
+      "description": "nomina",
+      "date": "2025-12-17T00:23:38.620Z"
+    },
+    {
+      "id": 1765931184346,
+      "type": "income",
+      "month": "2025-12",
+      "amount": 1092.32,
+      "category": "Salario",
+      "account": "Cuenta Corriente",
+      "description": "nomina",
+      "date": "2025-12-17T00:26:24.346Z"
+    },
+    {
+      "id": 1765931255163,
+      "type": "income",
+      "month": "2025-10",
+      "amount": 1092.32,
+      "category": "Salario",
+      "account": "Cuenta Corriente",
+      "description": "nomina",
+      "date": "2025-12-17T00:27:35.163Z"
+    },
+    {
+      "id": 1765931295091,
+      "type": "income",
+      "month": "2025-09",
+      "amount": 949.08,
+      "category": "Salario",
+      "account": "Cuenta Corriente",
+      "description": "nomina",
+      "date": "2025-12-17T00:28:15.091Z"
+    },
+    {
+      "id": 1765934012937,
+      "type": "expense",
+      "month": "2025-11",
+      "amount": 150,
+      "category": "Otros",
+      "account": "Cuenta Corriente",
+      "description": "multa velocidad",
+      "date": "2025-12-17T01:13:32.937Z"
+    },
+    {
+      "id": 1766072664378,
+      "type": "expense",
+      "month": "2025-12",
+      "amount": 8.9,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2025-12-18T15:44:24.378Z"
+    },
+    {
+      "id": 1766072673311,
+      "type": "expense",
+      "month": "2025-12",
+      "amount": 6.2,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2025-12-18T15:44:33.311Z"
+    },
+    {
+      "id": 1766072689230,
+      "type": "expense",
+      "month": "2025-12",
+      "amount": 21,
+      "category": "Restaurantes",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2025-12-18T15:44:49.230Z"
+    },
+    {
+      "id": 1766072716921,
+      "type": "expense",
+      "month": "2025-12",
+      "amount": 2.95,
+      "category": "Transporte",
+      "account": "Cuenta Corriente",
+      "description": "parking",
+      "date": "2025-12-18T15:45:16.921Z"
+    },
+    {
+      "id": 1766072754502,
+      "type": "expense",
+      "month": "2025-12",
+      "amount": 2.95,
+      "category": "Transporte",
+      "account": "Cuenta Corriente",
+      "description": "parking",
+      "date": "2025-12-18T15:45:54.502Z"
+    },
+    {
+      "id": 1766072771454,
+      "type": "expense",
+      "month": "2025-12",
+      "amount": 65,
+      "category": "Restaurantes",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2025-12-18T15:46:11.454Z"
+    },
+    {
+      "id": 1766072824788,
+      "type": "expense",
+      "month": "2025-12",
+      "amount": 37.74,
+      "category": "Salud",
+      "account": "Cuenta Corriente",
+      "description": "Sanitas",
+      "date": "2025-12-18T15:47:04.788Z"
+    },
+    {
+      "id": 1766072856542,
+      "type": "expense",
+      "month": "2025-11",
+      "amount": 50,
+      "category": "Salud",
+      "account": "Cuenta Corriente",
+      "description": "Gym",
+      "date": "2025-12-18T15:47:36.542Z"
+    },
+    {
+      "id": 1766072889030,
+      "type": "expense",
+      "month": "2025-11",
+      "amount": 31,
+      "category": "Transporte",
+      "account": "Cuenta Corriente",
+      "description": "A2",
+      "date": "2025-12-18T15:48:09.030Z"
+    },
+    {
+      "id": 1766072923320,
+      "type": "expense",
+      "month": "2025-11",
+      "amount": 37.74,
+      "category": "Salud",
+      "account": "Cuenta Corriente",
+      "description": "Sanitas",
+      "date": "2025-12-18T15:48:43.320Z"
+    },
+    {
+      "id": 1766072961559,
+      "type": "expense",
+      "month": "2025-10",
+      "amount": 191.1,
+      "category": "Otros",
+      "account": "Cuenta Corriente",
+      "description": "Sancion Promocion BBVA",
+      "date": "2025-12-18T15:49:21.559Z"
+    },
+    {
+      "id": 1766072981453,
+      "type": "income",
+      "month": "2025-12",
+      "amount": 1500,
+      "category": "Salario",
+      "account": "Efectivo",
+      "description": "",
+      "date": "2025-12-18T15:49:41.453Z"
+    },
+    {
+      "id": 1766083304382,
+      "type": "expense",
+      "month": "2025-11",
+      "amount": 41.65,
+      "category": "Restaurantes",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2025-12-18T18:41:44.382Z"
+    },
+    {
+      "id": 1766083330388,
+      "type": "expense",
+      "month": "2025-11",
+      "amount": 17,
+      "category": "Otros",
+      "account": "Cuenta Corriente",
+      "description": "juguete haoran",
+      "date": "2025-12-18T18:42:10.388Z"
+    },
+    {
+      "id": 1766083370509,
+      "type": "expense",
+      "month": "2025-11",
+      "amount": 24.19,
+      "category": "Otros",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2025-12-18T18:42:50.509Z"
+    },
+    {
+      "id": 1767282095461,
+      "type": "income",
+      "month": "2026-01",
+      "amount": 1315,
+      "category": "Salario",
+      "account": "Efectivo",
+      "description": "",
+      "date": "2026-01-01T15:41:35.461Z"
+    },
+    {
+      "id": 1767282107783,
+      "type": "income",
+      "month": "2026-01",
+      "amount": 1092.32,
+      "category": "Salario",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-01-01T15:41:47.783Z"
+    },
+    {
+      "id": 1767282139266,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 18,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-01-01T15:42:19.266Z"
+    },
+    {
+      "id": 1767282160100,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 8.3,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-01-01T15:42:40.100Z"
+    },
+    {
+      "id": 1767283363848,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 30,
+      "category": "Ocio",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-01-01T16:02:43.848Z"
+    },
+    {
+      "id": 1767360230084,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 72.4,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "ramen Shifu",
+      "date": "2026-01-02T13:23:50.084Z"
+    },
+    {
+      "id": 1767360928835,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 37.74,
+      "category": "Salud",
+      "account": "Cuenta Corriente",
+      "description": "sanitas",
+      "date": "2026-01-02T13:35:28.835Z"
+    },
+    {
+      "id": 1767360940241,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 8,
+      "category": "Salud",
+      "account": "Cuenta Corriente",
+      "description": "sanitas(copago)",
+      "date": "2026-01-02T13:35:40.241Z"
+    },
+    {
+      "id": 1767360989085,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 2.99,
+      "category": "Otros",
+      "account": "Cuenta Corriente",
+      "description": "iCloud",
+      "date": "2026-01-02T13:36:29.085Z"
+    },
+    {
+      "id": 1767361011097,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 22.72,
+      "category": "Otros",
+      "account": "Cuenta Corriente",
+      "description": "touchpad Howen",
+      "date": "2026-01-02T13:36:51.097Z"
+    },
+    {
+      "id": 1767361029183,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 24.51,
+      "category": "Transporte",
+      "account": "Cuenta Corriente",
+      "description": "gasolina",
+      "date": "2026-01-02T13:37:09.183Z"
+    },
+    {
+      "id": 1767361065375,
+      "type": "expense",
+      "month": "2025-12",
+      "amount": 17.09,
+      "category": "Salud",
+      "account": "Cuenta Corriente",
+      "description": "acne",
+      "date": "2026-01-02T13:37:45.375Z"
+    },
+    {
+      "id": 1000000000001,
+      "type": "expense",
+      "month": "2025-01",
+      "amount": 1000,
+      "category": "Colchón",
+      "account": "Cuenta Corriente",
+      "description": "Inversión inicial",
+      "date": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 1000000000002,
+      "type": "expense",
+      "month": "2025-01",
+      "amount": 1200,
+      "category": "S&P500",
+      "account": "Cuenta Corriente",
+      "description": "Inversión inicial",
+      "date": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 1000000000003,
+      "type": "expense",
+      "month": "2025-01",
+      "amount": 1800,
+      "category": "Take-Two",
+      "account": "Cuenta Corriente",
+      "description": "Inversión inicial",
+      "date": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": 1767809709914,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 10,
+      "category": "Otros",
+      "account": "Cuenta Corriente",
+      "description": "regalo asier(Haowen)",
+      "date": "2026-01-07T18:15:09.914Z"
+    },
+    {
+      "id": 1767809734950,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 7.32,
+      "category": "Restaurantes",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-01-07T18:15:34.950Z"
+    },
+    {
+      "id": 1767809782291,
+      "type": "expense",
+      "month": "2025-12",
+      "amount": 150,
+      "category": "Otros",
+      "account": "Cuenta Corriente",
+      "description": "casino",
+      "date": "2026-01-07T18:16:22.291Z"
+    },
+    {
+      "id": 1767894185506,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 65,
+      "category": "Ropa",
+      "account": "Cuenta Corriente",
+      "description": "Zapatos Lu",
+      "date": "2026-01-08T17:43:05.506Z"
+    },
+    {
+      "id": 1767894499333,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 5.45,
+      "category": "Transporte",
+      "account": "Cuenta Corriente",
+      "description": "parking",
+      "date": "2026-01-08T17:48:19.333Z"
+    },
+    {
+      "id": 1767894508342,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 4,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-01-08T17:48:28.342Z"
+    },
+    {
+      "id": 1767894905196,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 441,
+      "category": "Otros",
+      "account": "Cuenta Corriente",
+      "description": "REGULACION PATRIMONIO REAL",
+      "date": "2026-01-08T17:55:05.196Z"
+    },
+    {
+      "id": 1767969550090,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 37.65,
+      "category": "Restaurantes",
+      "account": "Cuenta Corriente",
+      "description": "viena",
+      "date": "2026-01-09T14:39:10.090Z"
+    },
+    {
+      "id": 1767969568968,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 4.6,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-01-09T14:39:28.968Z"
+    },
+    {
+      "id": 1768086145768,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 17.65,
+      "category": "Ropa",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-01-10T23:02:25.768Z"
+    },
+    {
+      "id": 1768256575387,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 31,
+      "category": "Salud",
+      "account": "Cuenta Corriente",
+      "description": "Gym",
+      "date": "2026-01-12T22:22:55.387Z"
+    }
+  ]
+}

@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gestor Financiero Personal</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Control de gastos, ingresos e inversiones">
+    <meta name="theme-color" content="#4a5c4a">
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- iOS específico (Safari ignora el manifest para algunas cosas) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Finanzas">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
+    <!-- Prevenir zoom en inputs en iOS -->
+    <meta name="format-detection" content="telephone=no">
+    
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>GESTOR FINANCIERO</h1>
+        <p class="motivational">"No te atrevas a morir pobre"</p>
+    </header>
+
+    <div class="quick-actions">
+        <button class="quick-btn" onclick="openAddTransaction('income')">
+            <span class="quick-icon">⬇</span><span>Nuevo Ingreso</span>
+        </button>
+        <button class="quick-btn" onclick="openAddTransaction('expense')">
+            <span class="quick-icon">⬆</span><span>Nuevo Gasto</span>
+        </button>
+    </div>
+
+    <nav class="main-nav">
+        <button class="nav-btn active" onclick="showSection('dashboard')">Dashboard</button>
+        <button class="nav-btn" onclick="showSection('inversiones')">Inversiones</button>
+        <button class="nav-btn" onclick="showSection('estadisticas')">Estadísticas</button>
+        <button class="nav-btn" onclick="showSection('datos')">Datos</button>
+    </nav>
+
+    <div class="container">
+        
+        <!-- DASHBOARD -->
+        <div id="dashboard" class="section active">
+            <div class="summary-cards">
+                <div class="summary-card" onclick="showDetailsPopup('income')">
+                    <div class="card-label">Ingresos del Mes</div>
+                    <div class="card-value positive" id="monthlyIncome">0€</div>
+                </div>
+                <div class="summary-card" onclick="showDetailsPopup('expenses')">
+                    <div class="card-label">Gastos del Mes</div>
+                    <div class="card-value negative" id="monthlyExpenses">0€</div>
+                </div>
+                <div class="summary-card" onclick="showDetailsPopup('savings')">
+                    <div class="card-label">Tasa de Ahorro</div>
+                    <div class="card-value" id="savingsRate">0%</div>
+                </div>
+                <div class="summary-card" onclick="showDetailsPopup('patrimony')">
+                    <div class="card-label">Patrimonio Total</div>
+                    <div class="card-value highlight" id="totalPatrimony">0€</div>
+                </div>
+            </div>
+
+            <div class="transactions-grid">
+                <div class="transactions-column">
+                    <div class="column-header">
+                        <h2>Gastos</h2>
+                        <select id="filterExpensesMonth" onchange="filterExpenses()"></select>
+                    </div>
+                    <div class="column-total">
+                        <span>Total:</span>
+                        <span class="total-amount negative" id="expensesTotal">0€</span>
+                    </div>
+                    <div id="expensesList" class="transactions-list"></div>
+                </div>
+                <div class="transactions-column">
+                    <div class="column-header">
+                        <h2>Ingresos</h2>
+                        <select id="filterIncomesMonth" onchange="filterIncomes()"></select>
+                    </div>
+                    <div class="column-total">
+                        <span>Total:</span>
+                        <span class="total-amount positive" id="incomesTotal">0€</span>
+                    </div>
+                    <div id="incomesList" class="transactions-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- INVERSIONES -->
+        <div id="inversiones" class="section">
+            <div id="investmentSetup" class="card setup-card" style="display: none;">
+                <h2>Configuración Inicial</h2>
+                <p class="setup-description">Configura tu meta de colchón de emergencia</p>
+                <div class="form-group">
+                    <label>Meta del Colchón (€)</label>
+                    <input type="number" id="setupEmergencyGoal" placeholder="5000" step="100">
+                    <small>Recomendado: 3-6 meses de gastos</small>
+                </div>
+                <button class="btn-primary" onclick="completeSetup()">Completar</button>
+            </div>
+
+            <div id="investmentPanel" class="investment-panel">
+                <div class="investment-summary">
+                    <div class="inv-card emergency-card">
+                        <h3>Colchón de Emergencia</h3>
+                        <div class="emergency-visual">
+                            <div class="emergency-bar-container">
+                                <div class="emergency-bar-fill" id="emergencyBarFill"></div>
+                                <div class="emergency-bar-text">
+                                    <span id="emergencyCurrentText">0€</span>
+                                    <span class="emergency-separator">/</span>
+                                    <span id="emergencyGoalText">0€</span>
+                                </div>
+                            </div>
+                            <div class="emergency-percent" id="emergencyPercentBig">0%</div>
+                        </div>
+                        <div id="emergencyCompleteMsg" class="emergency-complete" style="display: none;">🎉 ¡Meta completada!</div>
+                        <div class="inv-actions">
+                            <button class="btn-secondary btn-small" onclick="editEmergencyGoal()">Editar Meta</button>
+                        </div>
+                    </div>
+                    
+                    <div class="inv-card">
+                        <h3>Total Invertido</h3>
+                        <div class="inv-value" id="invTotalInvested">0€</div>
+                        <div id="investmentDistribution" class="investment-distribution"></div>
+                    </div>
+                    
+                    <div class="inv-card">
+                        <h3>Disponible</h3>
+                        <div class="inv-value" id="availableThisMonth">0€</div>
+                        <small id="availableBreakdown">Patrimonio - Invertido</small>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Dónde está invertido</h2>
+                    </div>
+                    <div id="investmentBubbles" class="bubbles-container"></div>
+                    <p class="bubble-hint">Para añadir inversiones, usa "Nuevo Gasto" → categoría Inversión</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Categorías</h2>
+                        <button class="btn-secondary btn-small" onclick="addExpenseCategory()">+ Añadir</button>
+                    </div>
+                    <div id="expenseCategoriesList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ESTADÍSTICAS -->
+        <div id="estadisticas" class="section">
+            
+            <div class="card">
+                <div class="card-header">
+                    <h2>Distribución 20/15/65</h2>
+                    <button class="btn-secondary btn-small" onclick="editDistributionConfig()">⚙ Configurar</button>
+                </div>
+                <div class="distribution-nav">
+                    <button class="btn-nav" onclick="changeDistributionMonth(-1)">◀</button>
+                    <span id="distributionMonthLabel">Enero 2026</span>
+                    <button class="btn-nav" onclick="changeDistributionMonth(1)">▶</button>
+                </div>
+                <div class="distribution-income">Ingresos del mes: <strong id="distMonthIncome">0€</strong></div>
+                <div id="distributionGroups"></div>
+            </div>
+
+            <div class="card">
+                <h2>Evolución Mensual</h2>
+                <div class="chart-container"><canvas id="evolutionChart"></canvas></div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 id="distributionChartTitle">Gastos del Mes</h2>
+                    <button class="btn-secondary btn-small" id="toggleChartView" onclick="toggleChartView()">Ver Anual</button>
+                </div>
+                <div class="chart-nav">
+                    <button class="btn-nav" onclick="changeChartPeriod(-1)">◀</button>
+                    <span id="chartPeriodLabel">Enero 2026</span>
+                    <button class="btn-nav" onclick="changeChartPeriod(1)">▶</button>
+                </div>
+                <div class="chart-container"><canvas id="distributionChart"></canvas></div>
+            </div>
+
+            <div class="calculators-grid">
+                <div class="card calculator-card">
+                    <h3>Calculadora de Hipoteca</h3>
+                    <div class="form-group"><label>Precio vivienda (€)</label><input type="number" id="housePrice" step="1000"></div>
+                    <div class="form-group"><label>Entrada (€)</label><input type="number" id="downPayment" step="1000"></div>
+                    <div class="form-group"><label>Interés anual (%)</label><input type="number" id="interestRate" step="0.1"></div>
+                    <div class="form-group"><label>Años</label><input type="number" id="years" step="1"></div>
+                    <button class="btn-primary" onclick="calculateMortgage()">Calcular</button>
+                    <div id="mortgageResult" class="calc-result"></div>
+                </div>
+                <div class="card calculator-card">
+                    <h3>Fondo de Emergencia</h3>
+                    <div class="form-group"><label>Gastos mensuales (€)</label><input type="number" id="calcMonthlyExpenses" step="100"></div>
+                    <div class="form-group"><label>Meses de cobertura</label><input type="number" id="monthsCoverage" value="6" step="1"></div>
+                    <button class="btn-primary" onclick="calculateEmergencyFund()">Calcular</button>
+                    <div id="emergencyFundResult" class="calc-result"></div>
+                </div>
+                <div class="card calculator-card">
+                    <h3>CAGR</h3>
+                    <div class="form-group"><label>Valor inicial (€)</label><input type="number" id="initialValue" step="100"></div>
+                    <div class="form-group"><label>Valor final (€)</label><input type="number" id="finalValue" step="100"></div>
+                    <div class="form-group"><label>Años</label><input type="number" id="cagrYears" step="1"></div>
+                    <button class="btn-primary" onclick="calculateCAGR()">Calcular</button>
+                    <div id="cagrResult" class="calc-result"></div>
+                </div>
+                <div class="card calculator-card">
+                    <h3>Interés Compuesto</h3>
+                    <div class="form-group"><label>Capital inicial (€)</label><input type="number" id="ciInitial" step="100"></div>
+                    <div class="form-group"><label>Aportación mensual (€)</label><input type="number" id="ciMonthly" step="10"></div>
+                    <div class="form-group"><label>Interés anual (%)</label><input type="number" id="ciRate" step="0.1"></div>
+                    <div class="form-group"><label>Años</label><input type="number" id="ciYears" step="1"></div>
+                    <button class="btn-primary" onclick="calculateCompoundInterest()">Calcular</button>
+                    <div id="ciResult" class="calc-result"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DATOS -->
+        <div id="datos" class="section">
+            <div class="card">
+                <h2>Gestión de Datos</h2>
+                <div class="data-section">
+                    <h3>Exportar</h3>
+                    <p>Descarga un backup</p>
+                    <button class="btn-primary" onclick="exportData()">Descargar Backup</button>
+                </div>
+                <div class="data-section">
+                    <h3>Importar</h3>
+                    <p>Carga un backup previo</p>
+                    <input type="file" id="importFile" accept=".json">
+                    <button class="btn-primary" onclick="importData()">Cargar Backup</button>
+                </div>
+                <div class="data-section danger-zone">
+                    <h3>⚠️ Zona Peligrosa</h3>
+                    <p>Eliminará todos tus datos</p>
+                    <button class="btn-danger" onclick="resetData()">Borrar Todo</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALES -->
+    <div id="addTransactionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="transactionModalTitle">Nueva Transacción</h2>
+                <button class="modal-close" onclick="closeModal('addTransactionModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="transactionType">
+                <div class="form-group"><label>Mes/Año</label><input type="month" id="transactionMonth" required></div>
+                <div class="form-group"><label>Monto (€)</label><input type="number" id="transactionAmount" step="0.01" required placeholder="0.00"></div>
+                <div class="form-group"><label>Categoría</label><select id="transactionCategory"></select></div>
+                <div class="form-group"><label>Cuenta</label><select id="transactionAccount"><option value="Efectivo">Efectivo</option><option value="Cuenta Corriente">Cuenta Corriente</option></select></div>
+                <div class="form-group"><label>Descripción</label><input type="text" id="transactionDescription" placeholder="Opcional..."></div>
+                <button class="btn-primary full-width" onclick="saveTransaction()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editTransactionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Editar Transacción</h2>
+                <button class="modal-close" onclick="closeModal('editTransactionModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editTransactionId">
+                <div class="form-group"><label>Monto (€)</label><input type="number" id="editAmount" step="0.01"></div>
+                <div class="form-group"><label>Categoría</label><select id="editCategory"></select></div>
+                <div class="form-group"><label>Cuenta</label><select id="editAccount"><option value="Efectivo">Efectivo</option><option value="Cuenta Corriente">Cuenta Corriente</option></select></div>
+                <div class="form-group"><label>Descripción</label><input type="text" id="editDescription"></div>
+                <div class="modal-actions">
+                    <button class="btn-primary" onclick="saveEditedTransaction()">Guardar</button>
+                    <button class="btn-danger" onclick="deleteTransaction()">Eliminar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="detailsModal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2 id="detailsTitle">Detalles</h2>
+                <button class="modal-close" onclick="closeModal('detailsModal')">×</button>
+            </div>
+            <div class="modal-body" id="detailsContent"></div>
+        </div>
+    </div>
+
+    <div id="editValueModal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2 id="editValueTitle">Editar</h2>
+                <button class="modal-close" onclick="closeModal('editValueModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group"><label>Cantidad (€)</label><input type="number" id="editValueInput" step="0.01"></div>
+                <button class="btn-primary full-width" onclick="saveEditValue()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="newCategoryModal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>Nueva Categoría</h2>
+                <button class="modal-close" onclick="closeModal('newCategoryModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group"><label>Nombre</label><input type="text" id="newCategoryName" placeholder="Ej: Gimnasio"></div>
+                <div class="form-group">
+                    <label>Grupo</label>
+                    <select id="newCategoryGroup">
+                        <option value="basicos">Gastos Básicos (20%)</option>
+                        <option value="ocio">Ocio (15%)</option>
+                        <option value="inversion">Inversión (65%)</option>
+                    </select>
+                </div>
+                <button class="btn-primary full-width" onclick="saveNewCategory()">Añadir</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="distributionConfigModal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>Configurar Distribución</h2>
+                <button class="modal-close" onclick="closeModal('distributionConfigModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <p style="color:var(--text-muted);margin-bottom:20px;">Los porcentajes deben sumar 100%</p>
+                <div id="distributionConfigList"></div>
+                <button class="btn-primary full-width" style="margin-top:20px;" onclick="saveDistributionConfig()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    
+    <!-- Registro del Service Worker para PWA -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(reg => {
+                        console.log('Service Worker registrado:', reg.scope);
+                        
+                        // Detectar actualizaciones
+                        reg.addEventListener('updatefound', () => {
+                            const newWorker = reg.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // Nueva versión disponible
+                                    if (confirm('Nueva versión disponible. ¿Actualizar?')) {
+                                        newWorker.postMessage('skipWaiting');
+                                        window.location.reload();
+                                    }
+                                }
+                            });
+                        });
+                    })
+                    .catch(err => console.error('Error al registrar SW:', err));
+            });
+        }
+    </script>
+</body>
+</html>
