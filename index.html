@@ -2,27 +2,77 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gestor Financiero Personal</title>
-    
-    <!-- PWA Meta Tags -->
-    <meta name="description" content="Control de gastos, ingresos e inversiones">
-    <meta name="theme-color" content="#4a5c4a">
-    <link rel="manifest" href="manifest.json">
-    
-    <!-- iOS específico (Safari ignora el manifest para algunas cosas) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Finanzas">
-    <link rel="apple-touch-icon" href="icon-192.png">
-    
-    <!-- Prevenir zoom en inputs en iOS -->
-    <meta name="format-detection" content="telephone=no">
-    
+    <meta name="theme-color" content="#0a0a0a">
+    <title>Gestor Financiero Personal</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 </head>
 <body>
+    <!-- PANTALLA DE PIN -->
+    <div id="pinScreen" class="pin-screen active">
+        <div class="pin-title">Introduce tu PIN</div>
+        <div class="pin-dots" id="pinDots">
+            <div class="pin-dot"></div>
+            <div class="pin-dot"></div>
+            <div class="pin-dot"></div>
+            <div class="pin-dot"></div>
+            <div class="pin-dot"></div>
+            <div class="pin-dot"></div>
+        </div>
+        <div class="pin-keypad">
+            <button class="pin-key" onclick="addPinDigit('1')">1</button>
+            <button class="pin-key" onclick="addPinDigit('2')">2</button>
+            <button class="pin-key" onclick="addPinDigit('3')">3</button>
+            <button class="pin-key" onclick="addPinDigit('4')">4</button>
+            <button class="pin-key" onclick="addPinDigit('5')">5</button>
+            <button class="pin-key" onclick="addPinDigit('6')">6</button>
+            <button class="pin-key" onclick="addPinDigit('7')">7</button>
+            <button class="pin-key" onclick="addPinDigit('8')">8</button>
+            <button class="pin-key" onclick="addPinDigit('9')">9</button>
+            <button class="pin-key empty"></button>
+            <button class="pin-key" onclick="addPinDigit('0')">0</button>
+            <button class="pin-key delete" onclick="deletePinDigit()">←</button>
+        </div>
+        <div class="pin-error" id="pinError">PIN incorrecto</div>
+    </div>
+
+    <!-- APP CONTAINER -->
+    <div id="appContainer" class="app-container">
+    
+    <!-- HEADER MÓVIL -->
+    <div class="mobile-header">
+        <h1>Finanzas</h1>
+    </div>
+    
+    <!-- STATS MÓVIL - Ingresos y Gastos prominentes -->
+    <div class="mobile-main-stats">
+        <div class="mobile-stat-block">
+            <div class="mobile-stat-value positive" id="mobileIncome">+0€</div>
+            <div class="mobile-stat-label">Ingresos</div>
+        </div>
+        <div class="mobile-stat-block">
+            <div class="mobile-stat-value negative" id="mobileExpenses">-0€</div>
+            <div class="mobile-stat-label">Gastos</div>
+        </div>
+    </div>
+    
+    <!-- STATS SECUNDARIOS - Patrimonio y Ahorro -->
+    <div class="mobile-secondary-stats">
+        <div class="mobile-secondary-item">
+            <div class="mobile-secondary-value" id="mobilePatrimony">0€</div>
+            <div class="mobile-secondary-label">Patrimonio</div>
+        </div>
+        <div class="mobile-secondary-item">
+            <div class="mobile-secondary-value" id="mobileSavings">0%</div>
+            <div class="mobile-secondary-label">Ahorro</div>
+        </div>
+    </div>
+
     <header>
         <h1>GESTOR FINANCIERO</h1>
         <p class="motivational">"No te atrevas a morir pobre"</p>
@@ -30,10 +80,10 @@
 
     <div class="quick-actions">
         <button class="quick-btn" onclick="openAddTransaction('income')">
-            <span class="quick-icon">⬇</span><span>Nuevo Ingreso</span>
+            <span class="quick-icon">+</span><span>Ingreso</span>
         </button>
         <button class="quick-btn" onclick="openAddTransaction('expense')">
-            <span class="quick-icon">⬆</span><span>Nuevo Gasto</span>
+            <span class="quick-icon">−</span><span>Gasto</span>
         </button>
     </div>
 
@@ -254,6 +304,28 @@
         </div>
     </div>
 
+    <!-- NAVEGACIÓN MÓVIL INFERIOR -->
+    <nav class="mobile-nav">
+        <button class="mobile-nav-item active" onclick="showSection('dashboard')" id="mobileNavDashboard">
+            <span class="mobile-nav-icon">—</span>
+            Inicio
+        </button>
+        <button class="mobile-nav-item" onclick="showSection('inversiones')" id="mobileNavInversiones">
+            <span class="mobile-nav-icon">◇</span>
+            Inversión
+        </button>
+        <button class="mobile-nav-item" onclick="showSection('estadisticas')" id="mobileNavEstadisticas">
+            <span class="mobile-nav-icon">▢</span>
+            Stats
+        </button>
+        <button class="mobile-nav-item" onclick="showSection('datos')" id="mobileNavDatos">
+            <span class="mobile-nav-icon">≡</span>
+            Datos
+        </button>
+    </nav>
+
+    </div> <!-- Cierre app-container -->
+
     <!-- MODALES -->
     <div id="addTransactionModal" class="modal">
         <div class="modal-content">
@@ -352,32 +424,5 @@
     </div>
 
     <script src="script.js"></script>
-    
-    <!-- Registro del Service Worker para PWA -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./service-worker.js')
-                    .then(reg => {
-                        console.log('Service Worker registrado:', reg.scope);
-                        
-                        // Detectar actualizaciones
-                        reg.addEventListener('updatefound', () => {
-                            const newWorker = reg.installing;
-                            newWorker.addEventListener('statechange', () => {
-                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    // Nueva versión disponible
-                                    if (confirm('Nueva versión disponible. ¿Actualizar?')) {
-                                        newWorker.postMessage('skipWaiting');
-                                        window.location.reload();
-                                    }
-                                }
-                            });
-                        });
-                    })
-                    .catch(err => console.error('Error al registrar SW:', err));
-            });
-        }
-    </script>
 </body>
 </html>

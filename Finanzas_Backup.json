@@ -8,7 +8,8 @@
       "categories": [
         "Alquiler",
         "Transporte",
-        "Salud"
+        "Salud",
+        "Gastos Domésticos"
       ]
     },
     "ocio": {
@@ -504,6 +505,26 @@
       "account": "Cuenta Corriente",
       "description": "Gym",
       "date": "2026-01-12T22:22:55.387Z"
+    },
+    {
+      "id": 1768349615623,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 10.68,
+      "category": "Gastos Domésticos",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-01-14T00:13:35.623Z"
+    },
+    {
+      "id": 1768349626473,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 24.52,
+      "category": "Transporte",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-01-14T00:13:46.473Z"
     }
   ]
 }

@@ -49,7 +49,7 @@ header .motivational { font-style: italic; font-size: 1.3em; color: var(--olive-
 .quick-btn:hover { background: var(--olive-main); transform: translateY(-2px); }
 .quick-icon { font-size: 1.5em; }
 
-/* NAVEGACIÓN */
+/* NAVEGACIÃ“N */
 .main-nav {
     display: flex; justify-content: center; background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 100;
@@ -127,7 +127,7 @@ header .motivational { font-style: italic; font-size: 1.3em; color: var(--olive-
 .inv-card small { color: var(--text-muted); font-style: italic; }
 .inv-actions { display: flex; gap: 10px; margin-top: 15px; justify-content: center; flex-wrap: wrap; }
 
-/* Colchón de Emergencia */
+/* ColchÃ³n de Emergencia */
 .emergency-visual { margin: 20px 0; }
 .emergency-bar-container {
     position: relative; height: 50px; background: var(--bg-tertiary);
@@ -151,7 +151,7 @@ header .motivational { font-style: italic; font-size: 1.3em; color: var(--olive-
     color: var(--olive-lighter); border: 1px solid var(--olive-light);
 }
 
-/* Distribución de inversiones */
+/* DistribuciÃ³n de inversiones */
 .investment-distribution { margin-top: 15px; text-align: left; }
 .distribution-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-color); font-size: 0.9em; }
 .distribution-item:last-child { border-bottom: none; }
@@ -188,7 +188,7 @@ header .motivational { font-style: italic; font-size: 1.3em; color: var(--olive-
 .patrimony-bubble-name { font-size: 0.8em; color: rgba(255,255,255,0.9); margin-bottom: 5px; }
 .patrimony-bubble-amount { font-size: 1em; color: var(--text-primary); font-weight: bold; }
 
-/* CATEGORÍAS */
+/* CATEGORÃAS */
 .category-group { margin-bottom: 20px; }
 .category-group-header {
     display: flex; justify-content: space-between; align-items: center;
@@ -212,7 +212,7 @@ header .motivational { font-style: italic; font-size: 1.3em; color: var(--olive-
 .card h3 { font-size: 1.3em; font-weight: 400; margin-bottom: 15px; }
 .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
 
-/* DISTRIBUCIÓN 20/15/65 */
+/* DISTRIBUCIÃ“N 20/15/65 */
 .distribution-nav, .chart-nav {
     display: flex; justify-content: center; align-items: center; gap: 20px; margin-bottom: 20px;
 }
@@ -237,7 +237,7 @@ header .motivational { font-style: italic; font-size: 1.3em; color: var(--olive-
 .distribution-status.positive { color: var(--accent-positive); }
 .distribution-status.negative { color: var(--accent-negative); }
 
-/* ESTADÍSTICAS */
+/* ESTADÃSTICAS */
 .chart-container { height: 400px; margin: 30px 0; }
 .calculators-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 30px; margin-top: 30px; }
 .calculator-card { background: var(--bg-secondary); border: 1px solid var(--border-color); }
@@ -337,27 +337,359 @@ input[type="month"] { cursor: pointer; }
 ::-webkit-scrollbar-thumb { background: var(--olive-dark); }
 ::-webkit-scrollbar-thumb:hover { background: var(--olive-main); }
 
-/* RESPONSIVE */
+/* ============================================
+   PANTALLA DE PIN
+   ============================================ */
+.pin-screen {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--bg-primary);
+    z-index: 9999;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 25px;
+}
+.pin-screen.active { display: flex; }
+.pin-title {
+    font-size: 0.8em;
+    color: #555;
+    letter-spacing: 4px;
+    margin-bottom: 40px;
+    text-transform: uppercase;
+}
+.pin-dots {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 50px;
+}
+.pin-dot {
+    width: 14px;
+    height: 14px;
+    border: 1px solid #333;
+    background: transparent;
+}
+.pin-dot.filled {
+    background: var(--olive-light);
+    border-color: var(--olive-light);
+}
+.pin-keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    width: 100%;
+    max-width: 280px;
+}
+.pin-key {
+    height: 60px;
+    background: #111;
+    border: 1px solid #222;
+    color: #888;
+    font-family: inherit;
+    font-size: 1.3em;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.pin-key:hover, .pin-key:active {
+    background: #1a1a1a;
+    border-color: var(--olive-dark);
+    color: var(--text-primary);
+}
+.pin-key.empty {
+    background: transparent;
+    border: none;
+    cursor: default;
+}
+.pin-key.delete {
+    font-size: 1em;
+    color: #555;
+}
+.pin-error {
+    margin-top: 30px;
+    font-size: 0.75em;
+    color: var(--accent-negative);
+    letter-spacing: 1px;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+.pin-error.show { opacity: 1; }
+
+/* App container - se oculta hasta introducir PIN */
+.app-container { display: none; }
+.app-container.unlocked { display: block; }
+
+/* ============================================
+   RESPONSIVE - TABLET
+   ============================================ */
 @media (max-width: 1400px) { .summary-cards { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 1200px) { .transactions-grid, .investment-summary { grid-template-columns: 1fr; } }
+
+/* ============================================
+   RESPONSIVE - MÓVIL
+   ============================================ */
 @media (max-width: 768px) {
-    header h1 { font-size: 1.8em; letter-spacing: 4px; }
-    header .motivational { font-size: 1em; }
-    .quick-actions { flex-wrap: wrap; }
-    .quick-btn { flex: 1 1 45%; }
-    .main-nav { flex-wrap: wrap; }
-    .nav-btn { flex: 1 1 45%; padding: 15px 20px; font-size: 0.9em; }
-    .container { padding: 20px 15px; }
-    .card { padding: 20px; }
-    .summary-cards { grid-template-columns: 1fr; }
+    /* Ocultar header original en móvil */
+    header { display: none; }
+    
+    /* Header móvil minimalista */
+    .mobile-header {
+        display: block;
+        padding: 15px;
+        background: var(--bg-primary);
+        border-bottom: 1px solid #1a1a1a;
+    }
+    .mobile-header h1 {
+        font-size: 0.75em;
+        letter-spacing: 4px;
+        font-weight: 400;
+        color: #555;
+        text-transform: uppercase;
+        text-align: center;
+    }
+    
+    /* Stats principales - Ingresos y Gastos */
+    .mobile-main-stats {
+        display: flex;
+        background: var(--bg-primary);
+        border-bottom: 1px solid #1a1a1a;
+    }
+    .mobile-stat-block {
+        flex: 1;
+        padding: 20px 15px;
+        text-align: center;
+    }
+    .mobile-stat-block:first-child {
+        border-right: 1px solid #1a1a1a;
+    }
+    .mobile-stat-value {
+        font-size: 1.5em;
+        font-weight: 400;
+    }
+    .mobile-stat-value.positive { color: var(--accent-positive); }
+    .mobile-stat-value.negative { color: var(--accent-negative); }
+    .mobile-stat-label {
+        font-size: 0.6em;
+        color: #444;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin-top: 5px;
+    }
+    
+    /* Stats secundarios - Patrimonio y Ahorro */
+    .mobile-secondary-stats {
+        display: flex;
+        background: #0d0d0d;
+        border-bottom: 1px solid #1a1a1a;
+        padding: 12px 0;
+    }
+    .mobile-secondary-item {
+        flex: 1;
+        text-align: center;
+        padding: 0 15px;
+    }
+    .mobile-secondary-item:first-child {
+        border-right: 1px solid #1a1a1a;
+    }
+    .mobile-secondary-value {
+        font-size: 0.95em;
+        color: #666;
+    }
+    .mobile-secondary-label {
+        font-size: 0.55em;
+        color: #3a3a3a;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-top: 3px;
+    }
+    
+    /* Botones de acción móvil */
+    .quick-actions {
+        padding: 12px 15px;
+        gap: 10px;
+        background: var(--bg-primary);
+    }
+    .quick-btn {
+        flex: 1;
+        padding: 12px 15px;
+        border: 1px solid #222;
+        background: #111;
+        color: #666;
+        font-size: 0.8em;
+        letter-spacing: 1px;
+    }
+    .quick-btn:hover {
+        border-color: var(--olive-dark);
+        color: var(--text-primary);
+        background: #1a1a1a;
+        transform: none;
+    }
+    .quick-icon { font-size: 1em; }
+    
+    /* Ocultar navegación superior en móvil */
+    .main-nav { display: none; }
+    
+    /* Navegación inferior móvil */
+    .mobile-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 60px;
+        background: #0d0d0d;
+        border-top: 1px solid #1a1a1a;
+        justify-content: space-around;
+        align-items: center;
+        padding-bottom: 5px;
+        z-index: 1000;
+    }
+    .mobile-nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        color: #3a3a3a;
+        font-size: 0.5em;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        transition: color 0.15s;
+        font-family: inherit;
+    }
+    .mobile-nav-item.active { color: var(--olive-light); }
+    .mobile-nav-icon {
+        font-size: 1.5em;
+        font-weight: 300;
+    }
+    
+    /* Container ajustes móvil */
+    .container {
+        padding: 15px;
+        padding-bottom: 80px; /* Espacio para nav inferior */
+    }
+    
+    /* Summary cards ocultas en móvil (reemplazadas por mobile-stats) */
+    .summary-cards { display: none; }
+    
+    /* Transacciones móvil */
+    .transactions-grid { grid-template-columns: 1fr; gap: 15px; }
+    .transactions-column {
+        padding: 15px;
+        border: 1px solid #151515;
+        background: #0d0d0d;
+    }
+    .column-header {
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+    }
+    .column-header h2 {
+        font-size: 0.7em;
+        color: #3a3a3a;
+        letter-spacing: 2px;
+    }
+    .column-total {
+        padding: 12px;
+        background: #111;
+        border: 1px solid #1a1a1a;
+        margin-bottom: 15px;
+    }
+    .total-amount { font-size: 1.2em; }
+    .transaction-item {
+        padding: 12px;
+        margin-bottom: 6px;
+        background: #0a0a0a;
+        border: 1px solid #151515;
+    }
+    .transaction-item:hover {
+        border-color: #222;
+        background: #111;
+    }
+    .transaction-category {
+        padding: 3px 8px;
+        background: #1a1a1a;
+        font-size: 0.75em;
+    }
+    .transaction-amount { font-size: 1.1em; }
+    
+    /* Cards generales */
+    .card {
+        padding: 15px;
+        border: 1px solid #151515;
+        background: #0d0d0d;
+    }
+    .card h2 {
+        font-size: 0.7em;
+        color: #3a3a3a;
+        letter-spacing: 2px;
+    }
+    
+    /* Inversiones móvil */
+    .investment-summary {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    .inv-card {
+        padding: 20px;
+        background: #0d0d0d;
+        border: 1px solid #151515;
+    }
+    .inv-card h3 {
+        font-size: 0.65em;
+        color: #3a3a3a;
+    }
+    .inv-value {
+        font-size: 1.8em;
+        color: #666;
+    }
+    
+    /* Calculadoras */
     .calculators-grid { grid-template-columns: 1fr; }
+    
+    /* Modales */
     .modal-content { width: 95%; }
-    .chart-container { height: 300px; }
+    .modal-header { padding: 20px; }
+    .modal-header h2 { font-size: 1.1em; }
+    .modal-body { padding: 20px; }
+    
+    /* Charts */
+    .chart-container { height: 250px; }
+    
+    /* Notificaciones */
+    .notification { 
+        right: 10px; 
+        left: 10px; 
+        top: 10px;
+    }
 }
+
+/* ============================================
+   RESPONSIVE - MÓVIL PEQUEÑO
+   ============================================ */
 @media (max-width: 480px) {
-    header h1 { font-size: 1.5em; letter-spacing: 2px; }
-    .quick-btn, .nav-btn { flex: 1 1 100%; }
-    .card-value { font-size: 1.6em; }
-    .inv-value { font-size: 2em; }
-    .notification { right: 10px; left: 10px; }
+    .mobile-stat-value { font-size: 1.3em; }
+    .quick-btn { padding: 10px 12px; font-size: 0.75em; }
+    .transaction-item { padding: 10px; }
+    .inv-value { font-size: 1.5em; }
+    .pin-keypad { max-width: 240px; }
+    .pin-key { height: 55px; font-size: 1.2em; }
+}
+
+/* Ocultar elementos móvil en desktop */
+.mobile-header,
+.mobile-main-stats,
+.mobile-secondary-stats,
+.mobile-nav {
+    display: none;
+}
+@media (max-width: 768px) {
+    .mobile-header,
+    .mobile-main-stats,
+    .mobile-secondary-stats,
+    .mobile-nav {
+        display: flex;
+    }
+    .mobile-header { display: block; }
 }
