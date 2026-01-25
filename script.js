@@ -15,6 +15,7 @@ let currentPin = '';
 let data = {
     setupComplete: false,
     emergencyGoal: 5000,
+    emergencyCategory: 'Colchón', // Categoría configurable para fondo de emergencia
     categoryGroups: {
         basicos: { name: 'Gastos Básicos', percent: 20, categories: ['Salud', 'Transporte'] },
         ocio: { name: 'Ocio', percent: 15, categories: ['Comida', 'Hobby', 'Suscripciones', 'Ocio', 'Otros'] },
@@ -26,6 +27,12 @@ let data = {
 let evolutionChart = null, distributionChart = null;
 let chartState = { isYearly: false, currentMonth: null, currentYear: null };
 let distributionState = { currentMonth: null };
+
+// Variable de módulo en lugar de window global
+let currentEditCallback = null;
+
+// Contador para IDs únicos (más robusto que Date.now())
+let transactionIdCounter = 0;
 
 // ============================================
 // SISTEMA DE PIN
@@ -86,6 +93,8 @@ function unlockApp() {
 
 document.addEventListener('DOMContentLoaded', function() {
     loadData();
+    initializeIdCounter();
+    
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     chartState.currentMonth = currentMonth;
@@ -120,6 +129,7 @@ function loadData() {
             loaded.categoryGroups.inversion = { name: 'Inversión', percent: 65, categories: ['Colchón', 'ETFs', 'Acciones', 'Fondos'] };
         }
         if (loaded.emergencyGoal === undefined) loaded.emergencyGoal = 5000;
+        if (!loaded.emergencyCategory) loaded.emergencyCategory = 'Colchón';
         if (!loaded.transactions) loaded.transactions = [];
         data = loaded;
     }
@@ -127,6 +137,20 @@ function loadData() {
 
 function saveData() {
     localStorage.setItem('financeManagerData', JSON.stringify(data));
+}
+
+// Inicializa el contador de IDs basándose en el máximo existente
+function initializeIdCounter() {
+    if (data.transactions.length > 0) {
+        transactionIdCounter = Math.max(...data.transactions.map(t => t.id)) + 1;
+    } else {
+        transactionIdCounter = 1;
+    }
+}
+
+// Genera un ID único garantizado
+function generateUniqueId() {
+    return transactionIdCounter++;
 }
 
 // ============================================
@@ -166,6 +190,14 @@ function formatMonth(monthStr) {
     return new Date(monthStr + '-01').toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
 }
 
+// Sanitiza HTML para prevenir XSS
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // ============================================
 // CÁLCULOS FINANCIEROS
 // ============================================
@@ -177,8 +209,9 @@ function getTotalInvested() {
 }
 
 function getEmergencyFundTotal() {
+    const emergencyCat = data.emergencyCategory || 'Colchón';
     return data.transactions
-        .filter(t => t.type === 'expense' && t.category === 'Colchón')
+        .filter(t => t.type === 'expense' && t.category === emergencyCat)
         .reduce((sum, t) => sum + t.amount, 0);
 }
 
@@ -193,7 +226,6 @@ function getInvestmentByCategory() {
 // PATRIMONIO = Ingresos - Gastos REALES (inversiones NO restan, ajustes SÍ restan)
 function getPatrimony() {
     const totalIncome = data.transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-    // Los ajustes SÍ restan del patrimonio (es su propósito)
     const realExpenses = data.transactions.filter(t => t.type === 'expense' && !isInvestmentCategory(t.category)).reduce((sum, t) => sum + t.amount, 0);
     return totalIncome - realExpenses;
 }
@@ -261,11 +293,9 @@ function updateSummaryCards() {
     const currentMonth = getCurrentMonth();
     
     const monthlyIncome = data.transactions.filter(t => t.type === 'income' && t.month === currentMonth).reduce((sum, t) => sum + t.amount, 0);
-    // Excluir ajustes de los gastos mostrados
     const monthlyExpenses = data.transactions.filter(t => t.type === 'expense' && t.month === currentMonth && !isInvestmentCategory(t.category) && !isAdjustment(t)).reduce((sum, t) => sum + t.amount, 0);
     
     const totalIncome = data.transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-    // Excluir ajustes del cálculo de tasa de ahorro
     const realExpenses = data.transactions.filter(t => t.type === 'expense' && !isInvestmentCategory(t.category) && !isAdjustment(t)).reduce((sum, t) => sum + t.amount, 0);
     const savingsRate = totalIncome > 0 ? (((totalIncome - realExpenses) / totalIncome) * 100).toFixed(1) : 0;
     
@@ -279,11 +309,9 @@ function updateMobileStats() {
     const currentMonth = getCurrentMonth();
     
     const monthlyIncome = data.transactions.filter(t => t.type === 'income' && t.month === currentMonth).reduce((sum, t) => sum + t.amount, 0);
-    // Excluir ajustes
     const monthlyExpenses = data.transactions.filter(t => t.type === 'expense' && t.month === currentMonth && !isInvestmentCategory(t.category) && !isAdjustment(t)).reduce((sum, t) => sum + t.amount, 0);
     
     const totalIncome = data.transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-    // Excluir ajustes del cálculo de ahorro
     const realExpenses = data.transactions.filter(t => t.type === 'expense' && !isInvestmentCategory(t.category) && !isAdjustment(t)).reduce((sum, t) => sum + t.amount, 0);
     const savingsRate = totalIncome > 0 ? (((totalIncome - realExpenses) / totalIncome) * 100).toFixed(0) : 0;
     
@@ -302,7 +330,6 @@ function updateExpensesList() {
     const filterMonth = document.getElementById('filterExpensesMonth')?.value || '';
     const container = document.getElementById('expensesList');
     
-    // Excluir ajustes de la lista de gastos
     let expenses = data.transactions.filter(t => t.type === 'expense' && !isInvestmentCategory(t.category) && !isAdjustment(t));
     if (filterMonth) expenses = expenses.filter(t => t.month === filterMonth);
     expenses.sort((a, b) => b.month.localeCompare(a.month) || new Date(b.date) - new Date(a.date));
@@ -314,11 +341,11 @@ function updateExpensesList() {
     container.innerHTML = expenses.map(t => `
         <div class="transaction-item" onclick="openEditTransaction(${t.id})">
             <div class="transaction-row">
-                <span class="transaction-category">${t.category}</span>
+                <span class="transaction-category">${escapeHtml(t.category)}</span>
                 <span class="transaction-amount negative">-${formatCurrency(t.amount)}</span>
             </div>
-            <div class="transaction-meta"><span>${t.account || 'Efectivo'}</span><span>${formatMonth(t.month)}</span></div>
-            ${t.description ? `<div class="transaction-description">${t.description}</div>` : ''}
+            <div class="transaction-meta"><span>${escapeHtml(t.account) || 'Efectivo'}</span><span>${formatMonth(t.month)}</span></div>
+            ${t.description ? `<div class="transaction-description">${escapeHtml(t.description)}</div>` : ''}
         </div>
     `).join('');
 }
@@ -338,11 +365,11 @@ function updateIncomesList() {
     container.innerHTML = incomes.map(t => `
         <div class="transaction-item" onclick="openEditTransaction(${t.id})">
             <div class="transaction-row">
-                <span class="transaction-category">${t.category}</span>
+                <span class="transaction-category">${escapeHtml(t.category)}</span>
                 <span class="transaction-amount positive">+${formatCurrency(t.amount)}</span>
             </div>
-            <div class="transaction-meta"><span>${t.account || 'Efectivo'}</span><span>${formatMonth(t.month)}</span></div>
-            ${t.description ? `<div class="transaction-description">${t.description}</div>` : ''}
+            <div class="transaction-meta"><span>${escapeHtml(t.account) || 'Efectivo'}</span><span>${formatMonth(t.month)}</span></div>
+            ${t.description ? `<div class="transaction-description">${escapeHtml(t.description)}</div>` : ''}
         </div>
     `).join('');
 }
@@ -378,7 +405,7 @@ function openAddTransaction(type) {
     } else {
         let html = '';
         for (const [key, group] of Object.entries(data.categoryGroups)) {
-            html += `<optgroup label="${group.name}">${group.categories.map(cat => `<option value="${cat}">${cat}</option>`).join('')}</optgroup>`;
+            html += `<optgroup label="${escapeHtml(group.name)}">${group.categories.map(cat => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('')}</optgroup>`;
         }
         categorySelect.innerHTML = html;
     }
@@ -395,7 +422,16 @@ function saveTransaction() {
     
     if (!month || !amount || amount <= 0) { showNotification('Completa todos los campos', 'warning'); return; }
     
-    data.transactions.push({ id: Date.now(), type, month, amount, category, account, description, date: new Date().toISOString() });
+    data.transactions.push({ 
+        id: generateUniqueId(), 
+        type, 
+        month, 
+        amount, 
+        category, 
+        account, 
+        description, 
+        date: new Date().toISOString() 
+    });
     saveData();
     closeModal('addTransactionModal');
     updateMonthFilters();
@@ -409,6 +445,7 @@ function openEditTransaction(id) {
     if (!t) return;
     
     document.getElementById('editTransactionId').value = t.id;
+    document.getElementById('editMonth').value = t.month;
     document.getElementById('editAmount').value = t.amount;
     document.getElementById('editAccount').value = t.account || 'Efectivo';
     document.getElementById('editDescription').value = t.description || '';
@@ -419,7 +456,7 @@ function openEditTransaction(id) {
     } else {
         let html = '';
         for (const [key, group] of Object.entries(data.categoryGroups)) {
-            html += `<optgroup label="${group.name}">${group.categories.map(cat => `<option value="${cat}">${cat}</option>`).join('')}</optgroup>`;
+            html += `<optgroup label="${escapeHtml(group.name)}">${group.categories.map(cat => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('')}</optgroup>`;
         }
         categorySelect.innerHTML = html;
     }
@@ -432,6 +469,7 @@ function saveEditedTransaction() {
     const t = data.transactions.find(t => t.id === id);
     if (!t) return;
     
+    t.month = document.getElementById('editMonth').value;
     t.amount = parseFloat(document.getElementById('editAmount').value);
     t.category = document.getElementById('editCategory').value;
     t.account = document.getElementById('editAccount').value;
@@ -439,6 +477,7 @@ function saveEditedTransaction() {
     
     saveData();
     closeModal('editTransactionModal');
+    updateMonthFilters();
     updateDashboard();
     renderInvestmentPanel();
     showNotification('Actualizada', 'success');
@@ -485,7 +524,7 @@ function updateInvestmentSummary() {
     const distributionDiv = document.getElementById('investmentDistribution');
     if (Object.keys(breakdown).length > 0 && totalInvested > 0) {
         distributionDiv.innerHTML = Object.entries(breakdown).map(([cat, amount]) => 
-            `<div class="distribution-item"><span>${cat}</span><span>${((amount / totalInvested) * 100).toFixed(0)}%</span></div>`
+            `<div class="distribution-item"><span>${escapeHtml(cat)}</span><span>${((amount / totalInvested) * 100).toFixed(0)}%</span></div>`
         ).join('');
     } else {
         distributionDiv.innerHTML = '<small>Sin inversiones</small>';
@@ -520,8 +559,8 @@ function renderBubbleChart() {
     let i = 0;
     container.innerHTML = Object.entries(breakdown).map(([cat, amount]) => {
         const size = 80 + ((amount / maxAmount) * 80);
-        return `<div class="bubble" style="width:${size}px;height:${size}px;background:${colors[i++ % colors.length]}" title="${cat}: ${formatCurrency(amount)}">
-            <span class="bubble-name">${cat}</span><span class="bubble-amount">${formatCurrency(amount)}</span>
+        return `<div class="bubble" style="width:${size}px;height:${size}px;background:${colors[i++ % colors.length]}" title="${escapeHtml(cat)}: ${formatCurrency(amount)}">
+            <span class="bubble-name">${escapeHtml(cat)}</span><span class="bubble-amount">${formatCurrency(amount)}</span>
         </div>`;
     }).join('');
 }
@@ -536,10 +575,10 @@ function renderExpenseCategories() {
     for (const [key, group] of Object.entries(data.categoryGroups)) {
         html += `<div class="category-group">
             <div class="category-group-header" onclick="toggleCategoryGroup('${key}')">
-                <span class="category-group-title">${group.name}</span><span class="category-group-percent">${group.percent}%</span>
+                <span class="category-group-title">${escapeHtml(group.name)}</span><span class="category-group-percent">${group.percent}%</span>
             </div>
             <div class="category-tags" id="group-${key}">
-                ${group.categories.map((cat, i) => `<span class="category-tag">${cat}<span class="category-remove" onclick="event.stopPropagation();removeExpenseCategory('${key}',${i})">×</span></span>`).join('')}
+                ${group.categories.map((cat, i) => `<span class="category-tag">${escapeHtml(cat)}<span class="category-remove" onclick="event.stopPropagation();removeExpenseCategory('${key}',${i})">×</span></span>`).join('')}
             </div>
         </div>`;
     }
@@ -571,7 +610,16 @@ function saveNewCategory() {
 
 function removeExpenseCategory(groupKey, index) {
     const cat = data.categoryGroups[groupKey].categories[index];
-    if (!confirm(`¿Eliminar "${cat}"?`)) return;
+    
+    // Verificar si hay transacciones con esta categoría
+    const transactionsWithCategory = data.transactions.filter(t => t.category === cat);
+    
+    if (transactionsWithCategory.length > 0) {
+        if (!confirm(`"${cat}" tiene ${transactionsWithCategory.length} transacción(es). ¿Eliminar categoría? Las transacciones mantendrán la categoría antigua.`)) return;
+    } else {
+        if (!confirm(`¿Eliminar "${cat}"?`)) return;
+    }
+    
     data.categoryGroups[groupKey].categories.splice(index, 1);
     saveData();
     renderExpenseCategories();
@@ -596,7 +644,6 @@ function updateDistributionCard() {
     const monthIncome = data.transactions.filter(t => t.type === 'income' && t.month === month).reduce((sum, t) => sum + t.amount, 0);
     document.getElementById('distMonthIncome').textContent = formatCurrency(monthIncome);
     
-    // Excluir ajustes de la distribución
     const monthExpenses = data.transactions.filter(t => t.type === 'expense' && t.month === month && !isAdjustment(t));
     let html = '';
     
@@ -608,7 +655,7 @@ function updateDistributionCard() {
         const diff = Math.abs(target - spent);
         
         html += `<div class="distribution-group">
-            <div class="distribution-group-header"><span class="distribution-group-title">${group.name} (${group.percent}%)</span><span class="distribution-group-target">${formatCurrency(target)}</span></div>
+            <div class="distribution-group-header"><span class="distribution-group-title">${escapeHtml(group.name)} (${group.percent}%)</span><span class="distribution-group-target">${formatCurrency(target)}</span></div>
             <div class="distribution-progress"><div class="progress-bar-container"><div class="progress-bar-fill ${isOver ? 'over' : 'under'}" style="width:${Math.min(percent, 100)}%"></div></div></div>
             <div class="distribution-stats"><span>${formatCurrency(spent)} ${key === 'inversion' ? 'movidos' : 'gastados'}</span><span class="distribution-status ${isOver ? 'negative' : 'positive'}">${isOver ? '¡Pasado ' + formatCurrency(diff) + '!' : 'Faltan ' + formatCurrency(diff)}</span></div>
         </div>`;
@@ -626,7 +673,7 @@ function changeDistributionMonth(delta) {
 function editDistributionConfig() {
     let html = '';
     for (const [key, group] of Object.entries(data.categoryGroups)) {
-        html += `<div class="form-group"><label>${group.name}</label><input type="number" id="config-${key}" value="${group.percent}" min="0" max="100"></div>`;
+        html += `<div class="form-group"><label>${escapeHtml(group.name)}</label><input type="number" id="config-${key}" value="${group.percent}" min="0" max="100"></div>`;
     }
     document.getElementById('distributionConfigList').innerHTML = html;
     openModal('distributionConfigModal');
@@ -661,7 +708,6 @@ function updateEvolutionChart() {
     }
     
     const incomeData = months.map(m => data.transactions.filter(t => t.type === 'income' && t.month === m).reduce((sum, t) => sum + t.amount, 0));
-    // Excluir ajustes de la gráfica
     const expenseData = months.map(m => data.transactions.filter(t => t.type === 'expense' && t.month === m && !isInvestmentCategory(t.category) && !isAdjustment(t)).reduce((sum, t) => sum + t.amount, 0));
     const labels = months.map(m => new Date(m + '-01').toLocaleDateString('es-ES', { month: 'short', year: '2-digit' }));
     
@@ -684,7 +730,6 @@ function updateDistributionChartLabels() {
 
 function updateDistributionChart() {
     const ctx = document.getElementById('distributionChart');
-    // Excluir ajustes de la gráfica de distribución
     let expenses = chartState.isYearly 
         ? data.transactions.filter(t => t.type === 'expense' && t.month.startsWith(chartState.currentYear) && !isInvestmentCategory(t.category) && !isAdjustment(t))
         : data.transactions.filter(t => t.type === 'expense' && t.month === chartState.currentMonth && !isInvestmentCategory(t.category) && !isAdjustment(t));
@@ -762,13 +807,13 @@ window.addEventListener('click', e => { if (e.target.classList.contains('modal')
 function openEditModal(title, currentValue, callback) {
     document.getElementById('editValueTitle').textContent = title;
     document.getElementById('editValueInput').value = currentValue;
-    window.currentEditCallback = callback;
+    currentEditCallback = callback; // Variable de módulo, no window
     openModal('editValueModal');
 }
 
 function saveEditValue() {
     const value = parseFloat(document.getElementById('editValueInput').value);
-    if (window.currentEditCallback && !isNaN(value)) window.currentEditCallback(value);
+    if (currentEditCallback && !isNaN(value)) currentEditCallback(value);
     closeModal('editValueModal');
 }
 
@@ -776,7 +821,7 @@ function showNotification(message, type = 'info') {
     document.querySelector('.notification')?.remove();
     const n = document.createElement('div');
     n.className = `notification ${type}`;
-    n.innerHTML = `<span>${message}</span><button onclick="this.parentElement.remove()">×</button>`;
+    n.innerHTML = `<span>${escapeHtml(message)}</span><button onclick="this.parentElement.remove()">×</button>`;
     document.body.appendChild(n);
     setTimeout(() => n.remove(), 3000);
 }
@@ -796,17 +841,15 @@ function showDetailsPopup(type) {
         content.innerHTML = `<div class="details-center"><p><strong>Mensual:</strong> <span class="positive">${formatCurrency(m)}</span></p><p><strong>Anual:</strong> <span class="positive">${formatCurrency(y)}</span></p></div>`;
     } else if (type === 'expenses') {
         title.textContent = 'Gastos';
-        // Excluir ajustes
         const me = data.transactions.filter(t => t.type === 'expense' && t.month === currentMonth && !isInvestmentCategory(t.category) && !isAdjustment(t));
         const m = me.reduce((s, t) => s + t.amount, 0);
         const y = data.transactions.filter(t => t.type === 'expense' && t.month.startsWith(currentYear) && !isInvestmentCategory(t.category) && !isAdjustment(t)).reduce((s, t) => s + t.amount, 0);
         const bd = {}; me.forEach(t => { bd[t.category] = (bd[t.category] || 0) + t.amount; });
-        const bdHtml = Object.keys(bd).length > 0 ? '<div class="details-breakdown">' + Object.entries(bd).sort((a, b) => b[1] - a[1]).map(([c, a]) => `<div class="details-breakdown-item"><span>${c}</span><span class="negative">${formatCurrency(a)}</span></div>`).join('') + '</div>' : '';
+        const bdHtml = Object.keys(bd).length > 0 ? '<div class="details-breakdown">' + Object.entries(bd).sort((a, b) => b[1] - a[1]).map(([c, a]) => `<div class="details-breakdown-item"><span>${escapeHtml(c)}</span><span class="negative">${formatCurrency(a)}</span></div>`).join('') + '</div>' : '';
         content.innerHTML = `<div class="details-center"><p><strong>Mensual:</strong> <span class="negative">${formatCurrency(m)}</span></p><p><strong>Anual:</strong> <span class="negative">${formatCurrency(y)}</span></p><hr><p style="color:var(--text-muted)">Desglose:</p></div>${bdHtml}`;
     } else if (type === 'savings') {
         title.textContent = 'Tasa de Ahorro';
         const ti = data.transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-        // Excluir ajustes del cálculo
         const re = data.transactions.filter(t => t.type === 'expense' && !isInvestmentCategory(t.category) && !isAdjustment(t)).reduce((s, t) => s + t.amount, 0);
         const rate = ti > 0 ? (((ti - re) / ti) * 100).toFixed(1) : 0;
         content.innerHTML = `<div class="details-center"><h2 class="highlight">${rate}%</h2><p class="details-subtitle">De cada 100€, ahorras ${rate}€</p></div>`;
