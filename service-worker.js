@@ -2,129 +2,105 @@
 // SERVICE WORKER - Gestor Financiero PWA
 // ============================================
 // ⚠️ CAMBIA ESTE NÚMERO JUNTO CON APP_VERSION EN script.js
-const SW_VERSION = '1.0.0';
+const SW_VERSION = '1.0.1';
 const CACHE_NAME = 'finanzas-v' + SW_VERSION;
 
-// Archivos a cachear para funcionamiento offline
+// Archivos a cachear
 const ASSETS_TO_CACHE = [
-  './',
-  './index.html',
-  './style.css',
-  './script.js',
-  './manifest.json',
-  './icon-192.png',
-  './icon-512.png',
-  // Chart.js desde CDN
-  'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js'
+    './',
+    './index.html',
+    './style.css',
+    './script.js',
+    './manifest.json',
+    'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js'
 ];
 
 // ============================================
-// INSTALACIÃ“N - Cachea todos los archivos
+// INSTALACIÓN
 // ============================================
 self.addEventListener('install', event => {
-  console.log('[SW] Instalando Service Worker...');
-  
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('[SW] Cacheando archivos...');
-        return cache.addAll(ASSETS_TO_CACHE);
-      })
-      .then(() => {
-        console.log('[SW] Archivos cacheados correctamente');
-        // Activa inmediatamente sin esperar a que se cierren otras pestaÃ±as
-        return self.skipWaiting();
-      })
-      .catch(err => {
-        console.error('[SW] Error al cachear:', err);
-      })
-  );
+    console.log('[SW] Instalando versión:', SW_VERSION);
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then(cache => cache.addAll(ASSETS_TO_CACHE))
+            .then(() => self.skipWaiting()) // Activa inmediatamente
+    );
 });
 
 // ============================================
-// ACTIVACIÃ“N - Limpia cachÃ©s antiguas
+// ACTIVACIÓN - Limpia cachés antiguas
 // ============================================
 self.addEventListener('activate', event => {
-  console.log('[SW] Activando Service Worker...');
-  
-  event.waitUntil(
-    caches.keys()
-      .then(cacheNames => {
-        return Promise.all(
-          cacheNames
-            .filter(name => name !== CACHE_NAME)
-            .map(name => {
-              console.log('[SW] Eliminando cachÃ© antigua:', name);
-              return caches.delete(name);
+    console.log('[SW] Activando versión:', SW_VERSION);
+    event.waitUntil(
+        caches.keys()
+            .then(cacheNames => {
+                return Promise.all(
+                    cacheNames
+                        .filter(name => name.startsWith('finanzas-') && name !== CACHE_NAME)
+                        .map(name => {
+                            console.log('[SW] Eliminando caché antigua:', name);
+                            return caches.delete(name);
+                        })
+                );
             })
-        );
-      })
-      .then(() => {
-        console.log('[SW] Service Worker activado');
-        // Toma control de todas las pÃ¡ginas inmediatamente
-        return self.clients.claim();
-      })
-  );
+            .then(() => self.clients.claim()) // Toma control inmediato
+    );
 });
 
 // ============================================
-// FETCH - Estrategia Cache First, Network Fallback
+// FETCH - Network First para archivos principales
 // ============================================
 self.addEventListener('fetch', event => {
-  // Solo manejamos GET requests
-  if (event.request.method !== 'GET') return;
-  
-  event.respondWith(
-    caches.match(event.request)
-      .then(cachedResponse => {
-        // Si estÃ¡ en cachÃ©, devuelve la versiÃ³n cacheada
-        if (cachedResponse) {
-          // En segundo plano, intenta actualizar el cachÃ©
-          fetchAndCache(event.request);
-          return cachedResponse;
-        }
+    if (event.request.method !== 'GET') return;
+    
+    const url = new URL(event.request.url);
+    
+    // Para archivos de la app: Network First (busca actualizaciones)
+    if (url.pathname.endsWith('.html') || 
+        url.pathname.endsWith('.js') || 
+        url.pathname.endsWith('.css') ||
+        url.pathname === '/' ||
+        url.pathname.endsWith('/')) {
         
-        // Si no estÃ¡ en cachÃ©, busca en red
-        return fetch(event.request)
-          .then(response => {
-            // Si la respuesta es vÃ¡lida, guÃ¡rdala en cachÃ©
-            if (response && response.status === 200) {
-              const responseClone = response.clone();
-              caches.open(CACHE_NAME)
-                .then(cache => cache.put(event.request, responseClone));
-            }
-            return response;
-          })
-          .catch(() => {
-            // Si falla la red y no hay cachÃ©, muestra pÃ¡gina offline
-            // (Para tu app, esto raramente pasarÃ¡ porque todo estÃ¡ cacheado)
-            console.log('[SW] Sin conexiÃ³n y sin cachÃ© para:', event.request.url);
-          });
-      })
-  );
+        event.respondWith(
+            fetch(event.request)
+                .then(response => {
+                    // Guardar en caché la versión nueva
+                    const responseClone = response.clone();
+                    caches.open(CACHE_NAME).then(cache => {
+                        cache.put(event.request, responseClone);
+                    });
+                    return response;
+                })
+                .catch(() => {
+                    // Si no hay red, usar caché
+                    return caches.match(event.request);
+                })
+        );
+    } else {
+        // Para otros recursos (CDN, imágenes): Cache First
+        event.respondWith(
+            caches.match(event.request)
+                .then(cached => {
+                    if (cached) return cached;
+                    return fetch(event.request).then(response => {
+                        const responseClone = response.clone();
+                        caches.open(CACHE_NAME).then(cache => {
+                            cache.put(event.request, responseClone);
+                        });
+                        return response;
+                    });
+                })
+        );
+    }
 });
 
 // ============================================
-// HELPER - Actualiza cachÃ© en segundo plano
-// ============================================
-function fetchAndCache(request) {
-  fetch(request)
-    .then(response => {
-      if (response && response.status === 200) {
-        caches.open(CACHE_NAME)
-          .then(cache => cache.put(request, response));
-      }
-    })
-    .catch(() => {
-      // Silencioso - no hay red, no pasa nada
-    });
-}
-
-// ============================================
-// MENSAJE - Para forzar actualizaciÃ³n si es necesario
+// MENSAJE - Para forzar actualización
 // ============================================
 self.addEventListener('message', event => {
-  if (event.data === 'skipWaiting') {
-    self.skipWaiting();
-  }
+    if (event.data === 'skipWaiting') {
+        self.skipWaiting();
+    }
 });
