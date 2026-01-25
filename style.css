@@ -49,7 +49,7 @@ header .motivational { font-style: italic; font-size: 1.3em; color: var(--olive-
 .quick-btn:hover { background: var(--olive-main); transform: translateY(-2px); }
 .quick-icon { font-size: 1.5em; }
 
-/* NAVEGACIÃ“N */
+/* NAVEGACIÓN */
 .main-nav {
     display: flex; justify-content: center; background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 100;
@@ -127,7 +127,7 @@ header .motivational { font-style: italic; font-size: 1.3em; color: var(--olive-
 .inv-card small { color: var(--text-muted); font-style: italic; }
 .inv-actions { display: flex; gap: 10px; margin-top: 15px; justify-content: center; flex-wrap: wrap; }
 
-/* ColchÃ³n de Emergencia */
+/* ColchÃƒÂ³n de Emergencia */
 .emergency-visual { margin: 20px 0; }
 .emergency-bar-container {
     position: relative; height: 50px; background: var(--bg-tertiary);
@@ -151,7 +151,7 @@ header .motivational { font-style: italic; font-size: 1.3em; color: var(--olive-
     color: var(--olive-lighter); border: 1px solid var(--olive-light);
 }
 
-/* DistribuciÃ³n de inversiones */
+/* DistribuciÃƒÂ³n de inversiones */
 .investment-distribution { margin-top: 15px; text-align: left; }
 .distribution-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-color); font-size: 0.9em; }
 .distribution-item:last-child { border-bottom: none; }
@@ -188,7 +188,7 @@ header .motivational { font-style: italic; font-size: 1.3em; color: var(--olive-
 .patrimony-bubble-name { font-size: 0.8em; color: rgba(255,255,255,0.9); margin-bottom: 5px; }
 .patrimony-bubble-amount { font-size: 1em; color: var(--text-primary); font-weight: bold; }
 
-/* CATEGORÃAS */
+/* CATEGORÃƒÂAS */
 .category-group { margin-bottom: 20px; }
 .category-group-header {
     display: flex; justify-content: space-between; align-items: center;
@@ -212,7 +212,7 @@ header .motivational { font-style: italic; font-size: 1.3em; color: var(--olive-
 .card h3 { font-size: 1.3em; font-weight: 400; margin-bottom: 15px; }
 .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
 
-/* DISTRIBUCIÃ“N 20/15/65 */
+/* DISTRIBUCIÃƒâ€œN 20/15/65 */
 .distribution-nav, .chart-nav {
     display: flex; justify-content: center; align-items: center; gap: 20px; margin-bottom: 20px;
 }
@@ -237,7 +237,7 @@ header .motivational { font-style: italic; font-size: 1.3em; color: var(--olive-
 .distribution-status.positive { color: var(--accent-positive); }
 .distribution-status.negative { color: var(--accent-negative); }
 
-/* ESTADÃSTICAS */
+/* ESTADÃƒÂSTICAS */
 .chart-container { height: 400px; margin: 30px 0; }
 .calculators-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 30px; margin-top: 30px; }
 .calculator-card { background: var(--bg-secondary); border: 1px solid var(--border-color); }
@@ -426,13 +426,13 @@ input[type="month"] { cursor: pointer; }
 @media (max-width: 1200px) { .transactions-grid, .investment-summary { grid-template-columns: 1fr; } }
 
 /* ============================================
-   RESPONSIVE - MÓVIL
+   RESPONSIVE - MÃ“VIL
    ============================================ */
 @media (max-width: 768px) {
-    /* Ocultar header original en móvil */
+    /* Ocultar header original en mÃ³vil */
     header { display: none; }
     
-    /* Header móvil minimalista */
+    /* Header mÃ³vil minimalista */
     .mobile-header {
         display: block;
         padding: 15px;
@@ -503,7 +503,7 @@ input[type="month"] { cursor: pointer; }
         margin-top: 3px;
     }
     
-    /* Botones de acción móvil */
+    /* Botones de acciÃ³n mÃ³vil */
     .quick-actions {
         padding: 12px 15px;
         gap: 10px;
@@ -526,10 +526,10 @@ input[type="month"] { cursor: pointer; }
     }
     .quick-icon { font-size: 1em; }
     
-    /* Ocultar navegación superior en móvil */
+    /* Ocultar navegaciÃ³n superior en mÃ³vil */
     .main-nav { display: none; }
     
-    /* Navegación inferior móvil */
+    /* NavegaciÃ³n inferior mÃ³vil */
     .mobile-nav {
         display: flex;
         position: fixed;
@@ -565,16 +565,16 @@ input[type="month"] { cursor: pointer; }
         font-weight: 300;
     }
     
-    /* Container ajustes móvil */
+    /* Container ajustes mÃ³vil */
     .container {
         padding: 15px;
         padding-bottom: 80px; /* Espacio para nav inferior */
     }
     
-    /* Summary cards ocultas en móvil (reemplazadas por mobile-stats) */
+    /* Summary cards ocultas en mÃ³vil (reemplazadas por mobile-stats) */
     .summary-cards { display: none; }
     
-    /* Transacciones móvil */
+    /* Transacciones mÃ³vil */
     .transactions-grid { grid-template-columns: 1fr; gap: 15px; }
     .transactions-column {
         padding: 15px;
@@ -626,7 +626,7 @@ input[type="month"] { cursor: pointer; }
         letter-spacing: 2px;
     }
     
-    /* Inversiones móvil */
+    /* Inversiones mÃ³vil */
     .investment-summary {
         grid-template-columns: 1fr;
         gap: 15px;
@@ -666,7 +666,7 @@ input[type="month"] { cursor: pointer; }
 }
 
 /* ============================================
-   RESPONSIVE - MÓVIL PEQUEÑO
+   RESPONSIVE - MÃ“VIL PEQUEÃ‘O
    ============================================ */
 @media (max-width: 480px) {
     .mobile-stat-value { font-size: 1.3em; }
@@ -677,7 +677,7 @@ input[type="month"] { cursor: pointer; }
     .pin-key { height: 55px; font-size: 1.2em; }
 }
 
-/* Ocultar elementos móvil en desktop */
+/* Ocultar elementos mÃ³vil en desktop */
 .mobile-header,
 .mobile-main-stats,
 .mobile-secondary-stats,
@@ -692,4 +692,95 @@ input[type="month"] { cursor: pointer; }
         display: flex;
     }
     .mobile-header { display: block; }
+}
+/* ============================================
+   BANNER DE ACTUALIZACIÓN
+   ============================================ */
+.update-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg, var(--olive-dark) 0%, var(--olive-main) 100%);
+    border-bottom: 2px solid var(--olive-light);
+    z-index: 10000;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from { transform: translateY(-100%); }
+    to { transform: translateY(0); }
+}
+
+.update-banner.fade-out {
+    animation: slideUp 0.3s ease forwards;
+}
+
+@keyframes slideUp {
+    from { transform: translateY(0); opacity: 1; }
+    to { transform: translateY(-100%); opacity: 0; }
+}
+
+.update-content {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px 20px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.update-icon {
+    font-size: 1.5em;
+}
+
+.update-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.update-text strong {
+    color: var(--text-primary);
+    font-size: 1em;
+}
+
+.update-text small {
+    color: var(--olive-lighter);
+    font-size: 0.85em;
+}
+
+.update-close {
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 1.5em;
+    cursor: pointer;
+    padding: 5px 10px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.update-close:hover {
+    opacity: 1;
+}
+
+@media (max-width: 768px) {
+    .update-content {
+        padding: 12px 15px;
+        gap: 12px;
+    }
+    
+    .update-icon {
+        font-size: 1.3em;
+    }
+    
+    .update-text strong {
+        font-size: 0.9em;
+    }
+    
+    .update-text small {
+        font-size: 0.75em;
+    }
 }
