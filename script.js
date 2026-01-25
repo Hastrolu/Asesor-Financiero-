@@ -1,4 +1,53 @@
 // ============================================
+// VERSIÓN DE LA APP
+// ============================================
+// ⚠️ CAMBIA ESTE NÚMERO CADA VEZ QUE ACTUALICES EL CÓDIGO
+const APP_VERSION = '1.0.0';
+// ============================================
+
+// Verifica si hay una nueva versión
+function checkForUpdates() {
+    const lastVersion = localStorage.getItem('appVersion');
+    
+    if (!lastVersion) {
+        // Primera instalación
+        localStorage.setItem('appVersion', APP_VERSION);
+        console.log(`[App] Versión ${APP_VERSION} instalada`);
+    } else if (lastVersion !== APP_VERSION) {
+        // Nueva versión detectada
+        showUpdateBanner(lastVersion, APP_VERSION);
+        localStorage.setItem('appVersion', APP_VERSION);
+    } else {
+        console.log(`[App] Versión ${APP_VERSION} - Sin cambios`);
+    }
+}
+
+// Muestra el banner de actualización
+function showUpdateBanner(oldVersion, newVersion) {
+    const banner = document.createElement('div');
+    banner.className = 'update-banner';
+    banner.innerHTML = `
+        <div class="update-content">
+            <span class="update-icon">🎉</span>
+            <div class="update-text">
+                <strong>¡App actualizada!</strong>
+                <small>v${oldVersion} → v${newVersion}</small>
+            </div>
+            <button class="update-close" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+    `;
+    document.body.appendChild(banner);
+    
+    // Auto-cerrar después de 5 segundos
+    setTimeout(() => {
+        if (banner.parentElement) {
+            banner.classList.add('fade-out');
+            setTimeout(() => banner.remove(), 300);
+        }
+    }, 5000);
+}
+
+// ============================================
 // CONFIGURACIÓN DEL PIN
 // ============================================
 // ⚠️ PARA CAMBIAR TU PIN, MODIFICA EL VALOR ENTRE COMILLAS AQUÍ:
@@ -92,6 +141,7 @@ function unlockApp() {
 // ============================================
 
 document.addEventListener('DOMContentLoaded', function() {
+    checkForUpdates();
     loadData();
     initializeIdCounter();
     
