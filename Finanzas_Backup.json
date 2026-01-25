@@ -9,7 +9,8 @@
         "Alquiler",
         "Transporte",
         "Salud",
-        "Gastos Domésticos"
+        "Comida doméstica",
+        "Producto doméstico"
       ]
     },
     "ocio": {
@@ -22,7 +23,8 @@
         "Compra Online",
         "Comida",
         "Ropa",
-        "Otros"
+        "Otros",
+        "Parking"
       ]
     },
     "inversion": {
@@ -511,7 +513,7 @@
       "type": "expense",
       "month": "2026-01",
       "amount": 10.68,
-      "category": "Gastos Domésticos",
+      "category": "Producto doméstico",
       "account": "Cuenta Corriente",
       "description": "",
       "date": "2026-01-14T00:13:35.623Z"
@@ -525,6 +527,247 @@
       "account": "Cuenta Corriente",
       "description": "",
       "date": "2026-01-14T00:13:46.473Z"
+    },
+    {
+      "id": 1768394941428,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 1.8,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-01-14T12:49:01.428Z"
+    },
+    {
+      "id": 1768480477824,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 16.1,
+      "category": "Restaurantes",
+      "account": "Cuenta Corriente",
+      "description": "Desayuno",
+      "date": "2026-01-15T12:34:37.824Z"
+    },
+    {
+      "id": 1768480494060,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 18,
+      "category": "Ocio",
+      "account": "Cuenta Corriente",
+      "description": "Pelo",
+      "date": "2026-01-15T12:34:54.060Z"
+    },
+    {
+      "id": 1768697268232,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 6.8,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-01-18T00:47:48.233Z"
+    },
+    {
+      "id": 1768697327124,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 21.78,
+      "category": "Otros",
+      "account": "Cuenta Corriente",
+      "description": "Claude",
+      "date": "2026-01-18T00:48:47.124Z"
+    },
+    {
+      "id": 1768697397655,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 13,
+      "category": "Restaurantes",
+      "account": "Cuenta Corriente",
+      "description": "pizza&pollo",
+      "date": "2026-01-18T00:49:57.655Z"
+    },
+    {
+      "id": 1768697430552,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 25,
+      "category": "Transporte",
+      "account": "Cuenta Corriente",
+      "description": "gasolina",
+      "date": "2026-01-18T00:50:30.552Z"
+    },
+    {
+      "id": 1768697451865,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 8.93,
+      "category": "Compra Online",
+      "account": "Cuenta Corriente",
+      "description": "lipgloss najwa",
+      "date": "2026-01-18T00:50:51.865Z"
+    },
+    {
+      "id": 1768841652376,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 48,
+      "category": "Transporte",
+      "account": "Cuenta Corriente",
+      "description": "Gasolina",
+      "date": "2026-01-19T16:54:12.376Z"
+    },
+    {
+      "id": 1768841916578,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 45,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "DayDayGo",
+      "date": "2026-01-19T16:58:36.578Z"
+    },
+    {
+      "id": 1768842260741,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 5.5,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-01-19T17:04:20.741Z"
+    },
+    {
+      "id": 1768909192118,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 23.6,
+      "category": "Parking",
+      "account": "Cuenta Corriente",
+      "description": "Parking apolo",
+      "date": "2026-01-20T11:39:52.118Z"
+    },
+    {
+      "id": 1768909234465,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 6.1,
+      "category": "Restaurantes",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-01-20T11:40:34.465Z"
+    },
+    {
+      "id": 1768909360093,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 11.68,
+      "category": "Restaurantes",
+      "account": "Cuenta Corriente",
+      "description": "Kfc",
+      "date": "2026-01-20T11:42:40.093Z"
+    },
+    {
+      "id": 1768910474693,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 2.7,
+      "category": "Parking",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-01-20T12:01:14.693Z"
+    },
+    {
+      "id": 1768910591457,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 6.58,
+      "category": "Restaurantes",
+      "account": "Cuenta Corriente",
+      "description": "Desayuno",
+      "date": "2026-01-20T12:03:11.457Z"
+    },
+    {
+      "id": 1768931806698,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 4.9,
+      "category": "Gastos Domésticos",
+      "account": "Cuenta Corriente",
+      "description": "Agua",
+      "date": "2026-01-20T17:56:46.698Z"
+    },
+    {
+      "id": 1768938799728,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 8,
+      "category": "Restaurantes",
+      "account": "Efectivo",
+      "description": "Kebab especial",
+      "date": "2026-01-20T19:53:19.728Z"
+    },
+    {
+      "id": 1768939932241,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 10.3,
+      "category": "Comida doméstica",
+      "account": "Cuenta Corriente",
+      "description": "Para desayuno",
+      "date": "2026-01-20T20:12:12.241Z"
+    },
+    {
+      "id": 1769115872829,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 7.1,
+      "category": "Comida doméstica",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-01-22T21:04:32.829Z"
+    },
+    {
+      "id": 1769166137691,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 6.35,
+      "category": "Comida",
+      "account": "Efectivo",
+      "description": "",
+      "date": "2026-01-23T11:02:17.691Z"
+    },
+    {
+      "id": 1769166146985,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 2.5,
+      "category": "Comida",
+      "account": "Efectivo",
+      "description": "",
+      "date": "2026-01-23T11:02:26.985Z"
+    },
+    {
+      "id": 1769166161264,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 5.15,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "Credito",
+      "date": "2026-01-23T11:02:41.264Z"
+    },
+    {
+      "id": 1769261752513,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 40,
+      "category": "Compra Online",
+      "account": "Cuenta Corriente",
+      "description": "Credito(najwa)",
+      "date": "2026-01-24T13:35:52.513Z"
     }
-  ]
+  ],
+  "emergencyCategory": "Colchón"
 }
