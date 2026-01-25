@@ -1,8 +1,9 @@
 // ============================================
 // SERVICE WORKER - Gestor Financiero PWA
 // ============================================
-
-const CACHE_NAME = 'finanzas-v2';
+// ⚠️ CAMBIA ESTE NÚMERO JUNTO CON APP_VERSION EN script.js
+const SW_VERSION = '1.0.0';
+const CACHE_NAME = 'finanzas-v' + SW_VERSION;
 
 // Archivos a cachear para funcionamiento offline
 const ASSETS_TO_CACHE = [
@@ -18,7 +19,7 @@ const ASSETS_TO_CACHE = [
 ];
 
 // ============================================
-// INSTALACIÓN - Cachea todos los archivos
+// INSTALACIÃ“N - Cachea todos los archivos
 // ============================================
 self.addEventListener('install', event => {
   console.log('[SW] Instalando Service Worker...');
@@ -31,7 +32,7 @@ self.addEventListener('install', event => {
       })
       .then(() => {
         console.log('[SW] Archivos cacheados correctamente');
-        // Activa inmediatamente sin esperar a que se cierren otras pestañas
+        // Activa inmediatamente sin esperar a que se cierren otras pestaÃ±as
         return self.skipWaiting();
       })
       .catch(err => {
@@ -41,7 +42,7 @@ self.addEventListener('install', event => {
 });
 
 // ============================================
-// ACTIVACIÓN - Limpia cachés antiguas
+// ACTIVACIÃ“N - Limpia cachÃ©s antiguas
 // ============================================
 self.addEventListener('activate', event => {
   console.log('[SW] Activando Service Worker...');
@@ -53,14 +54,14 @@ self.addEventListener('activate', event => {
           cacheNames
             .filter(name => name !== CACHE_NAME)
             .map(name => {
-              console.log('[SW] Eliminando caché antigua:', name);
+              console.log('[SW] Eliminando cachÃ© antigua:', name);
               return caches.delete(name);
             })
         );
       })
       .then(() => {
         console.log('[SW] Service Worker activado');
-        // Toma control de todas las páginas inmediatamente
+        // Toma control de todas las pÃ¡ginas inmediatamente
         return self.clients.claim();
       })
   );
@@ -76,17 +77,17 @@ self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request)
       .then(cachedResponse => {
-        // Si está en caché, devuelve la versión cacheada
+        // Si estÃ¡ en cachÃ©, devuelve la versiÃ³n cacheada
         if (cachedResponse) {
-          // En segundo plano, intenta actualizar el caché
+          // En segundo plano, intenta actualizar el cachÃ©
           fetchAndCache(event.request);
           return cachedResponse;
         }
         
-        // Si no está en caché, busca en red
+        // Si no estÃ¡ en cachÃ©, busca en red
         return fetch(event.request)
           .then(response => {
-            // Si la respuesta es válida, guárdala en caché
+            // Si la respuesta es vÃ¡lida, guÃ¡rdala en cachÃ©
             if (response && response.status === 200) {
               const responseClone = response.clone();
               caches.open(CACHE_NAME)
@@ -95,16 +96,16 @@ self.addEventListener('fetch', event => {
             return response;
           })
           .catch(() => {
-            // Si falla la red y no hay caché, muestra página offline
-            // (Para tu app, esto raramente pasará porque todo está cacheado)
-            console.log('[SW] Sin conexión y sin caché para:', event.request.url);
+            // Si falla la red y no hay cachÃ©, muestra pÃ¡gina offline
+            // (Para tu app, esto raramente pasarÃ¡ porque todo estÃ¡ cacheado)
+            console.log('[SW] Sin conexiÃ³n y sin cachÃ© para:', event.request.url);
           });
       })
   );
 });
 
 // ============================================
-// HELPER - Actualiza caché en segundo plano
+// HELPER - Actualiza cachÃ© en segundo plano
 // ============================================
 function fetchAndCache(request) {
   fetch(request)
@@ -120,7 +121,7 @@ function fetchAndCache(request) {
 }
 
 // ============================================
-// MENSAJE - Para forzar actualización si es necesario
+// MENSAJE - Para forzar actualizaciÃ³n si es necesario
 // ============================================
 self.addEventListener('message', event => {
   if (event.data === 'skipWaiting') {
