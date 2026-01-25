@@ -49,7 +49,7 @@ header .motivational { font-style: italic; font-size: 1.3em; color: var(--olive-
 .quick-btn:hover { background: var(--olive-main); transform: translateY(-2px); }
 .quick-icon { font-size: 1.5em; }
 
-/* NAVEGACIÓN */
+/* NAVEGACIÃƒâ€œN */
 .main-nav {
     display: flex; justify-content: center; background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 100;
