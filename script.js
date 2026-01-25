@@ -2,7 +2,7 @@
 // VERSIÓN DE LA APP
 // ============================================
 // ⚠️ CAMBIA ESTE NÚMERO CADA VEZ QUE ACTUALICES EL CÓDIGO
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.0.1';
 // ============================================
 
 // Verifica si hay una nueva versión
@@ -45,6 +45,37 @@ function showUpdateBanner(oldVersion, newVersion) {
             setTimeout(() => banner.remove(), 300);
         }
     }, 5000);
+}
+
+// Registra el Service Worker y verifica actualizaciones
+function registerServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./service-worker.js')
+            .then(registration => {
+                console.log('[App] Service Worker registrado');
+                
+                // Verificar actualizaciones cada vez que se abre la app
+                registration.update();
+                
+                // Detectar cuando hay una nueva versión
+                registration.addEventListener('updatefound', () => {
+                    const newWorker = registration.installing;
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            // Hay una nueva versión lista - recargar
+                            console.log('[App] Nueva versión detectada, recargando...');
+                            window.location.reload();
+                        }
+                    });
+                });
+            })
+            .catch(err => console.log('[App] Error SW:', err));
+        
+        // Recargar cuando el SW tome control
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            window.location.reload();
+        });
+    }
 }
 
 // ============================================
@@ -141,6 +172,7 @@ function unlockApp() {
 // ============================================
 
 document.addEventListener('DOMContentLoaded', function() {
+    registerServiceWorker();
     checkForUpdates();
     loadData();
     initializeIdCounter();
