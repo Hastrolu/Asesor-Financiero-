@@ -36,19 +36,19 @@
             <button class="pin-key" onclick="addPinDigit('9')">9</button>
             <button class="pin-key empty"></button>
             <button class="pin-key" onclick="addPinDigit('0')">0</button>
-            <button class="pin-key delete" onclick="deletePinDigit()">←</button>
+            <button class="pin-key delete" onclick="deletePinDigit()">⌫</button>
         </div>
         <div class="pin-error" id="pinError">PIN incorrecto</div>
     </div>
 
     <!-- APP CONTAINER -->
     <div id="appContainer" class="app-container">
-    
+
     <!-- HEADER MÓVIL -->
     <div class="mobile-header">
         <h1>Finanzas</h1>
     </div>
-    
+
     <!-- STATS MÓVIL - Ingresos y Gastos prominentes -->
     <div class="mobile-main-stats">
         <div class="mobile-stat-block">
@@ -60,7 +60,7 @@
             <div class="mobile-stat-label">Gastos</div>
         </div>
     </div>
-    
+
     <!-- STATS SECUNDARIOS - Patrimonio y Ahorro -->
     <div class="mobile-secondary-stats">
         <div class="mobile-secondary-item">
@@ -95,7 +95,7 @@
     </nav>
 
     <div class="container">
-        
+
         <!-- DASHBOARD -->
         <div id="dashboard" class="section active">
             <div class="summary-cards">
@@ -176,13 +176,13 @@
                             <button class="btn-secondary btn-small" onclick="editEmergencyGoal()">Editar Meta</button>
                         </div>
                     </div>
-                    
+
                     <div class="inv-card">
                         <h3>Total Invertido</h3>
                         <div class="inv-value" id="invTotalInvested">0€</div>
                         <div id="investmentDistribution" class="investment-distribution"></div>
                     </div>
-                    
+
                     <div class="inv-card">
                         <h3>Disponible</h3>
                         <div class="inv-value" id="availableThisMonth">0€</div>
@@ -200,6 +200,14 @@
 
                 <div class="card">
                     <div class="card-header">
+                        <h2>Gestión de Inversiones</h2>
+                    </div>
+                    <div id="investmentsList"></div>
+                    <p class="bubble-hint">Edita los montos si has movido dinero entre inversiones</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
                         <h2>Categorías</h2>
                         <button class="btn-secondary btn-small" onclick="addExpenseCategory()">+ Añadir</button>
                     </div>
@@ -210,11 +218,11 @@
 
         <!-- ESTADÍSTICAS -->
         <div id="estadisticas" class="section">
-            
+
             <div class="card">
                 <div class="card-header">
                     <h2>Distribución 20/15/65</h2>
-                    <button class="btn-secondary btn-small" onclick="editDistributionConfig()">⚙ Configurar</button>
+                    <button class="btn-secondary btn-small" onclick="editDistributionConfig()">⚙️ Configurar</button>
                 </div>
                 <div class="distribution-nav">
                     <button class="btn-nav" onclick="changeDistributionMonth(-1)">◀</button>
@@ -307,7 +315,7 @@
     <!-- NAVEGACIÓN MÓVIL INFERIOR -->
     <nav class="mobile-nav">
         <button class="mobile-nav-item active" onclick="showSection('dashboard')" id="mobileNavDashboard">
-            <span class="mobile-nav-icon">—</span>
+            <span class="mobile-nav-icon">⌂</span>
             Inicio
         </button>
         <button class="mobile-nav-item" onclick="showSection('inversiones')" id="mobileNavInversiones">
@@ -353,7 +361,6 @@
             </div>
             <div class="modal-body">
                 <input type="hidden" id="editTransactionId">
-                <div class="form-group"><label>Mes/Año</label><input type="month" id="editMonth"></div>
                 <div class="form-group"><label>Monto (€)</label><input type="number" id="editAmount" step="0.01"></div>
                 <div class="form-group"><label>Categoría</label><select id="editCategory"></select></div>
                 <div class="form-group"><label>Cuenta</label><select id="editAccount"><option value="Efectivo">Efectivo</option><option value="Cuenta Corriente">Cuenta Corriente</option></select></div>
