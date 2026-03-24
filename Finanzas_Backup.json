@@ -4,7 +4,7 @@
   "categoryGroups": {
     "basicos": {
       "name": "Gastos Básicos",
-      "percent": 20,
+      "percent": 15,
       "categories": [
         "Alquiler",
         "Transporte",
@@ -29,11 +29,13 @@
     },
     "inversion": {
       "name": "Inversión",
-      "percent": 65,
+      "percent": 70,
       "categories": [
         "Colchón",
         "S&P500",
-        "Take-Two"
+        "Take-Two",
+        "Crypto",
+        "iShares S&P500"
       ]
     }
   },
@@ -367,16 +369,6 @@
       "account": "Cuenta Corriente",
       "description": "acne",
       "date": "2026-01-02T13:37:45.375Z"
-    },
-    {
-      "id": 1000000000001,
-      "type": "expense",
-      "month": "2025-01",
-      "amount": 1000,
-      "category": "Colchón",
-      "account": "Cuenta Corriente",
-      "description": "Inversión inicial",
-      "date": "2025-01-01T00:00:00.000Z"
     },
     {
       "id": 1000000000002,
@@ -767,6 +759,986 @@
       "account": "Cuenta Corriente",
       "description": "Credito(najwa)",
       "date": "2026-01-24T13:35:52.513Z"
+    },
+    {
+      "id": 1769261752514,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 45.59,
+      "category": "Transporte",
+      "account": "Cuenta Corriente",
+      "description": "Itv",
+      "date": "2026-01-26T13:12:25.703Z"
+    },
+    {
+      "id": 1769261752515,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 10,
+      "category": "Restaurantes",
+      "account": "Efectivo",
+      "description": "",
+      "date": "2026-01-26T20:10:23.679Z"
+    },
+    {
+      "id": 1769261752516,
+      "type": "income",
+      "month": "2026-01",
+      "amount": 50,
+      "category": "Otros",
+      "account": "Efectivo",
+      "description": "Propinas",
+      "date": "2026-01-27T13:50:27.766Z"
+    },
+    {
+      "id": 1769261752517,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 4.45,
+      "category": "Transporte",
+      "account": "Cuenta Corriente",
+      "description": "Gasolina",
+      "date": "2026-01-29T20:03:33.185Z"
+    },
+    {
+      "id": 1769261752518,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 27.9,
+      "category": "Ocio",
+      "account": "Cuenta Corriente",
+      "description": "Cine",
+      "date": "2026-01-29T20:04:00.255Z"
+    },
+    {
+      "id": 1769261752519,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 3,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "Cheescake",
+      "date": "2026-01-29T20:04:42.312Z"
+    },
+    {
+      "id": 1769261752520,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 0.2,
+      "category": "Otros",
+      "account": "Cuenta Corriente",
+      "description": "Compresor pdf",
+      "date": "2026-01-29T20:05:11.650Z"
+    },
+    {
+      "id": 1769261752521,
+      "type": "income",
+      "month": "2026-01",
+      "amount": 13.95,
+      "category": "Otros",
+      "account": "Cuenta Corriente",
+      "description": "Bizum cici cine",
+      "date": "2026-01-29T20:05:26.317Z"
+    },
+    {
+      "id": 1769261752522,
+      "type": "income",
+      "month": "2026-01",
+      "amount": 10,
+      "category": "Otros",
+      "account": "Cuenta Corriente",
+      "description": "Ruleta",
+      "date": "2026-01-29T20:05:37.516Z"
+    },
+    {
+      "id": 1769261752523,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 80,
+      "category": "Restaurantes",
+      "account": "Cuenta Corriente",
+      "description": "Kalavia",
+      "date": "2026-01-29T20:07:54.349Z"
+    },
+    {
+      "id": 1769261752524,
+      "type": "expense",
+      "month": "2026-01",
+      "amount": 6,
+      "category": "Otros",
+      "account": "Cuenta Corriente",
+      "description": "Credito(milfshakr)",
+      "date": "2026-01-30T16:22:20.669Z"
+    },
+    {
+      "id": 1769261752525,
+      "type": "income",
+      "month": "2026-02",
+      "amount": 1113.1,
+      "category": "Salario",
+      "account": "Cuenta Corriente",
+      "description": "Nomina",
+      "date": "2026-02-01T13:55:02.444Z"
+    },
+    {
+      "id": 1769261752526,
+      "type": "income",
+      "month": "2026-02",
+      "amount": 1335,
+      "category": "Salario",
+      "account": "Efectivo",
+      "description": "",
+      "date": "2026-02-01T17:08:56.522Z"
+    },
+    {
+      "id": 1769261752528,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 660,
+      "category": "Take-Two",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-02-01T17:12:20.498Z"
+    },
+    {
+      "id": 1769261752529,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 37.74,
+      "category": "Salud",
+      "account": "Cuenta Corriente",
+      "description": "Sanitas",
+      "date": "2026-02-01T18:07:12.505Z"
+    },
+    {
+      "id": 1769261752530,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 2.99,
+      "category": "Otros",
+      "account": "Cuenta Corriente",
+      "description": "iCloud",
+      "date": "2026-02-02T07:55:41.909Z"
+    },
+    {
+      "id": 1769261752531,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 10,
+      "category": "Comida",
+      "account": "Efectivo",
+      "description": "Pollo asado",
+      "date": "2026-02-02T10:47:00.907Z"
+    },
+    {
+      "id": 1769261752532,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 750,
+      "category": "Crypto",
+      "account": "Cuenta Corriente",
+      "description": "Btc",
+      "date": "2026-02-03T18:19:56.608Z"
+    },
+    {
+      "id": 1769261752533,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 700,
+      "category": "Take-Two",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-02-03T18:20:23.434Z"
+    },
+    {
+      "id": 1769261752534,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 750,
+      "category": "iShares S&P500",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-02-03T18:22:58.260Z"
+    },
+    {
+      "id": 1769261752535,
+      "type": "income",
+      "month": "2026-02",
+      "amount": 125,
+      "category": "Otros",
+      "account": "Efectivo",
+      "description": "Propina jefe",
+      "date": "2026-02-03T22:35:36.911Z"
+    },
+    {
+      "id": 1769261752536,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 20,
+      "category": "Salud",
+      "account": "Efectivo",
+      "description": "Lubricante ojo",
+      "date": "2026-02-05T09:00:31.787Z"
+    },
+    {
+      "id": 1769261752537,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 8.25,
+      "category": "Restaurantes",
+      "account": "Cuenta Corriente",
+      "description": "Desayuno",
+      "date": "2026-02-05T10:09:31.124Z"
+    },
+    {
+      "id": 1769261752538,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 10,
+      "category": "Restaurantes",
+      "account": "Efectivo",
+      "description": "Kebab",
+      "date": "2026-02-06T21:09:08.884Z"
+    },
+    {
+      "id": 1769261752539,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 19.53,
+      "category": "Producto doméstico",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-02-07T16:48:47.359Z"
+    },
+    {
+      "id": 1769261752540,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 4.2,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "Helado",
+      "date": "2026-02-07T16:48:57.528Z"
+    },
+    {
+      "id": 1769261752541,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 50,
+      "category": "Transporte",
+      "account": "Cuenta Corriente",
+      "description": "Gasolina",
+      "date": "2026-02-09T17:08:03.969Z"
+    },
+    {
+      "id": 1769261752542,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 1.4,
+      "category": "Transporte",
+      "account": "Cuenta Corriente",
+      "description": "Parking",
+      "date": "2026-02-10T12:09:39.087Z"
+    },
+    {
+      "id": 1769261752543,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 7,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-02-11T11:02:09.166Z"
+    },
+    {
+      "id": 1769261752544,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 1.85,
+      "category": "Transporte",
+      "account": "Cuenta Corriente",
+      "description": "Parking",
+      "date": "2026-02-11T17:28:42.487Z"
+    },
+    {
+      "id": 1769261752545,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 28.89,
+      "category": "Ropa",
+      "account": "Cuenta Corriente",
+      "description": "Calzoncillo",
+      "date": "2026-02-12T10:44:12.138Z"
+    },
+    {
+      "id": 1769261752546,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 8,
+      "category": "Comida",
+      "account": "Efectivo",
+      "description": "Kebab",
+      "date": "2026-02-13T23:02:14.257Z"
+    },
+    {
+      "id": 1769261752547,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 100,
+      "category": "Otros",
+      "account": "Cuenta Corriente",
+      "description": "Regalo najwa",
+      "date": "2026-02-14T15:40:56.027Z"
+    },
+    {
+      "id": 1769261752548,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 14.36,
+      "category": "Producto doméstico",
+      "account": "Cuenta Corriente",
+      "description": "Secadora",
+      "date": "2026-02-15T15:30:48.751Z"
+    },
+    {
+      "id": 1769261752549,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 15,
+      "category": "Transporte",
+      "account": "Cuenta Corriente",
+      "description": "Gasolina",
+      "date": "2026-02-17T14:41:22.024Z"
+    },
+    {
+      "id": 1769261752550,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 340,
+      "category": "Compra Online",
+      "account": "Efectivo",
+      "description": "Quest 3",
+      "date": "2026-02-17T14:41:40.313Z"
+    },
+    {
+      "id": 1769261752551,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 61.14,
+      "category": "Salud",
+      "account": "Cuenta Corriente",
+      "description": "Derma",
+      "date": "2026-02-17T14:42:20.097Z"
+    },
+    {
+      "id": 1769261752552,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 0.82,
+      "category": "Transporte",
+      "account": "Cuenta Corriente",
+      "description": "Parking",
+      "date": "2026-02-17T14:42:35.364Z"
+    },
+    {
+      "id": 1769261752553,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 437,
+      "category": "Otros",
+      "account": "Cuenta Corriente",
+      "description": "Curso finanzhan",
+      "date": "2026-02-18T09:06:24.214Z"
+    },
+    {
+      "id": 1769261752554,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 3,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "Desayuno",
+      "date": "2026-02-20T10:43:06.345Z"
+    },
+    {
+      "id": 1769261752555,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 35,
+      "category": "Transporte",
+      "account": "Cuenta Corriente",
+      "description": "Gasolina",
+      "date": "2026-02-20T11:31:56.493Z"
+    },
+    {
+      "id": 1769261752556,
+      "type": "income",
+      "month": "2026-02",
+      "amount": 800,
+      "category": "Otros",
+      "account": "Efectivo",
+      "description": "Horas extras",
+      "date": "2026-02-22T16:43:00.587Z"
+    },
+    {
+      "id": 1769261752557,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 11.05,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "Credito",
+      "date": "2026-02-24T17:20:17.277Z"
+    },
+    {
+      "id": 1769261752558,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 15,
+      "category": "Otros",
+      "account": "Efectivo",
+      "description": "Rasca",
+      "date": "2026-02-25T16:58:03.135Z"
+    },
+    {
+      "id": 1769261752559,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 25,
+      "category": "Comida",
+      "account": "Efectivo",
+      "description": "Daydaygo",
+      "date": "2026-02-25T19:17:41.007Z"
+    },
+    {
+      "id": 1769261752560,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 1.25,
+      "category": "Transporte",
+      "account": "Cuenta Corriente",
+      "description": "Parking",
+      "date": "2026-02-25T19:21:12.178Z"
+    },
+    {
+      "id": 1769261752561,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 38.45,
+      "category": "Restaurantes",
+      "account": "Cuenta Corriente",
+      "description": "Kfc",
+      "date": "2026-02-25T19:52:12.218Z"
+    },
+    {
+      "id": 1769261752562,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 7.1,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "Desayuno",
+      "date": "2026-02-26T13:19:51.034Z"
+    },
+    {
+      "id": 1769261752563,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 28.8,
+      "category": "Restaurantes",
+      "account": "Efectivo",
+      "description": "Amosushi",
+      "date": "2026-02-26T13:22:36.576Z"
+    },
+    {
+      "id": 1769261752564,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 29.99,
+      "category": "Ocio",
+      "account": "Cuenta Corriente",
+      "description": "Juego quest3",
+      "date": "2026-02-26T16:25:56.133Z"
+    },
+    {
+      "id": 1769261752565,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 23,
+      "category": "Ropa",
+      "account": "Efectivo",
+      "description": "Zara",
+      "date": "2026-02-26T19:17:59.497Z"
+    },
+    {
+      "id": 1769261752566,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 5,
+      "category": "Comida",
+      "account": "Efectivo",
+      "description": "",
+      "date": "2026-02-26T19:53:02.094Z"
+    },
+    {
+      "id": 1769261752567,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 3.7,
+      "category": "Transporte",
+      "account": "Cuenta Corriente",
+      "description": "Parking",
+      "date": "2026-02-26T19:56:32.295Z"
+    },
+    {
+      "id": 1769261752568,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 6.25,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-02-26T20:27:44.056Z"
+    },
+    {
+      "id": 1769261752569,
+      "type": "income",
+      "month": "2026-02",
+      "amount": 60,
+      "category": "Otros",
+      "account": "Efectivo",
+      "description": "Propina",
+      "date": "2026-02-27T10:44:44.597Z"
+    },
+    {
+      "id": 1769261752570,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 4.49,
+      "category": "Producto doméstico",
+      "account": "Cuenta Corriente",
+      "description": "Cepillo dientes",
+      "date": "2026-02-28T19:20:20.550Z"
+    },
+    {
+      "id": 1769261752571,
+      "type": "income",
+      "month": "2026-03",
+      "amount": 1113.1,
+      "category": "Salario",
+      "account": "Cuenta Corriente",
+      "description": "Nomina",
+      "date": "2026-03-01T12:35:18.962Z"
+    },
+    {
+      "id": 1769261752572,
+      "type": "income",
+      "month": "2026-03",
+      "amount": 1390,
+      "category": "Salario",
+      "account": "Efectivo",
+      "description": "Sueldo",
+      "date": "2026-03-01T12:35:37.503Z"
+    },
+    {
+      "id": 1769261752573,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 2.99,
+      "category": "Otros",
+      "account": "Cuenta Corriente",
+      "description": "iCloud",
+      "date": "2026-03-01T12:36:35.597Z"
+    },
+    {
+      "id": 1769261752575,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 437,
+      "category": "Otros",
+      "account": "Cuenta Corriente",
+      "description": "2a Cuota finazhan",
+      "date": "2026-03-01T13:02:52.667Z"
+    },
+    {
+      "id": 1769261752576,
+      "type": "expense",
+      "month": "2026-02",
+      "amount": 0.85,
+      "category": "Transporte",
+      "account": "Cuenta Corriente",
+      "description": "Parking",
+      "date": "2026-03-01T13:05:23.682Z"
+    },
+    {
+      "id": 1769261752577,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 44.74,
+      "category": "Salud",
+      "account": "Cuenta Corriente",
+      "description": "Sanitas",
+      "date": "2026-03-01T13:06:34.629Z"
+    },
+    {
+      "id": 1769261752578,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 1.5,
+      "category": "Comida",
+      "account": "Efectivo",
+      "description": "Bits",
+      "date": "2026-03-01T18:27:42.482Z"
+    },
+    {
+      "id": 1769261752579,
+      "type": "income",
+      "month": "2026-03",
+      "amount": 40,
+      "category": "Otros",
+      "account": "Efectivo",
+      "description": "Ruleta",
+      "date": "2026-03-01T20:24:39.902Z"
+    },
+    {
+      "id": 1769261752580,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 20,
+      "category": "Restaurantes",
+      "account": "Efectivo",
+      "description": "Sushi",
+      "date": "2026-03-01T20:42:37.167Z"
+    },
+    {
+      "id": 1769261752581,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 10.28,
+      "category": "Producto doméstico",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-03-02T18:10:12.306Z"
+    },
+    {
+      "id": 1769261752582,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 10,
+      "category": "Restaurantes",
+      "account": "Efectivo",
+      "description": "Sushi",
+      "date": "2026-03-02T21:22:23.556Z"
+    },
+    {
+      "id": 1769261752583,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 50,
+      "category": "Take-Two",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-03-03T15:31:48.542Z"
+    },
+    {
+      "id": 1769261752584,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 45.63,
+      "category": "Transporte",
+      "account": "Cuenta Corriente",
+      "description": "Gasolina",
+      "date": "2026-03-03T18:34:18.198Z"
+    },
+    {
+      "id": 1769261752585,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 0.55,
+      "category": "Transporte",
+      "account": "Cuenta Corriente",
+      "description": "Parking",
+      "date": "2026-03-03T19:24:48.881Z"
+    },
+    {
+      "id": 1769261752586,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 250,
+      "category": "Otros",
+      "account": "Efectivo",
+      "description": "Fatbike",
+      "date": "2026-03-03T19:25:03.589Z"
+    },
+    {
+      "id": 1769261752589,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 17,
+      "category": "Otros",
+      "account": "Cuenta Corriente",
+      "description": "Regalo yunkai",
+      "date": "2026-03-08T08:19:40.403Z"
+    },
+    {
+      "id": 1769261752590,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 25.05,
+      "category": "Transporte",
+      "account": "Cuenta Corriente",
+      "description": "Gasolina",
+      "date": "2026-03-09T07:50:42.364Z"
+    },
+    {
+      "id": 1769261752591,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 6.76,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "Helados",
+      "date": "2026-03-09T07:51:19.569Z"
+    },
+    {
+      "id": 1769261752592,
+      "type": "income",
+      "month": "2026-03",
+      "amount": 13.06,
+      "category": "Otros",
+      "account": "Cuenta Corriente",
+      "description": "Bateria fatbike",
+      "date": "2026-03-09T22:57:31.974Z"
+    },
+    {
+      "id": 1769261752593,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 7.9,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "Paki",
+      "date": "2026-03-10T07:25:46.781Z"
+    },
+    {
+      "id": 1769261752594,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 2.99,
+      "category": "Producto doméstico",
+      "account": "Cuenta Corriente",
+      "description": "Afeitador",
+      "date": "2026-03-10T18:54:58.482Z"
+    },
+    {
+      "id": 1769261752595,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 360,
+      "category": "Otros",
+      "account": "Efectivo",
+      "description": "Bici scott",
+      "date": "2026-03-11T18:57:32.315Z"
+    },
+    {
+      "id": 1769261752597,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 7.58,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-03-14T19:38:50.321Z"
+    },
+    {
+      "id": 1769261752598,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 1.4,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-03-16T17:40:41.151Z"
+    },
+    {
+      "id": 1769261752599,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 17,
+      "category": "Restaurantes",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-03-16T20:44:17.216Z"
+    },
+    {
+      "id": 1769261752600,
+      "type": "income",
+      "month": "2026-03",
+      "amount": 46,
+      "category": "Otros",
+      "account": "Efectivo",
+      "description": "Rule",
+      "date": "2026-03-16T21:45:25.617Z"
+    },
+    {
+      "id": 1769261752601,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 21.78,
+      "category": "Compra Online",
+      "account": "Cuenta Corriente",
+      "description": "ClaudeAi",
+      "date": "2026-03-17T11:10:08.907Z"
+    },
+    {
+      "id": 1769261752602,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 8.5,
+      "category": "Ocio",
+      "account": "Efectivo",
+      "description": "Vaper",
+      "date": "2026-03-17T17:43:39.163Z"
+    },
+    {
+      "id": 1769261752603,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 10,
+      "category": "Producto doméstico",
+      "account": "Efectivo",
+      "description": "Herramientas",
+      "date": "2026-03-18T17:52:49.370Z"
+    },
+    {
+      "id": 1769261752604,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 20,
+      "category": "Comida",
+      "account": "Efectivo",
+      "description": "",
+      "date": "2026-03-18T18:42:42.411Z"
+    },
+    {
+      "id": 1769261752605,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 10,
+      "category": "Restaurantes",
+      "account": "Efectivo",
+      "description": "Sushi",
+      "date": "2026-03-18T19:45:07.118Z"
+    },
+    {
+      "id": 1769261752606,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 86.2,
+      "category": "Otros",
+      "account": "Cuenta Corriente",
+      "description": "Bateria fatbike",
+      "date": "2026-03-18T20:33:16.939Z"
+    },
+    {
+      "id": 1769261752607,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 5,
+      "category": "Otros",
+      "account": "Efectivo",
+      "description": "Loteria viaje",
+      "date": "2026-03-19T09:28:47.948Z"
+    },
+    {
+      "id": 1769261752608,
+      "type": "income",
+      "month": "2026-03",
+      "amount": 40,
+      "category": "Otros",
+      "account": "Efectivo",
+      "description": "Rule",
+      "date": "2026-03-19T21:39:02.452Z"
+    },
+    {
+      "id": 1769261752609,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 3.5,
+      "category": "Restaurantes",
+      "account": "Cuenta Corriente",
+      "description": "Bingo",
+      "date": "2026-03-19T22:07:20.455Z"
+    },
+    {
+      "id": 1769261752610,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 8.8,
+      "category": "Producto doméstico",
+      "account": "Efectivo",
+      "description": "Bálsamo",
+      "date": "2026-03-20T11:44:01.670Z"
+    },
+    {
+      "id": 1769261752611,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 20,
+      "category": "Restaurantes",
+      "account": "Efectivo",
+      "description": "Sushi",
+      "date": "2026-03-20T17:25:17.406Z"
+    },
+    {
+      "id": 1769261752612,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 1.8,
+      "category": "Transporte",
+      "account": "Cuenta Corriente",
+      "description": "Parking",
+      "date": "2026-03-20T17:39:30.153Z"
+    },
+    {
+      "id": 1769261752613,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 6.25,
+      "category": "Restaurantes",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-03-20T17:39:55.135Z"
+    },
+    {
+      "id": 1769261752614,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 3,
+      "category": "Ocio",
+      "account": "Efectivo",
+      "description": "",
+      "date": "2026-03-21T15:50:15.544Z"
+    },
+    {
+      "id": 1769261752616,
+      "type": "income",
+      "month": "2026-03",
+      "amount": 150,
+      "category": "Otros",
+      "account": "Efectivo",
+      "description": "Rule",
+      "date": "2026-03-22T20:56:57.253Z"
+    },
+    {
+      "id": 1769261752617,
+      "type": "expense",
+      "month": "2026-03",
+      "amount": 2.2,
+      "category": "Comida",
+      "account": "Cuenta Corriente",
+      "description": "",
+      "date": "2026-03-22T21:41:50.515Z"
     }
   ],
   "emergencyCategory": "Colchón"
