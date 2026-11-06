@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#0a0a0a">
@@ -381,21 +381,58 @@
     </div> <!-- Cierre app-container -->
 
     <!-- MODALES -->
+    <!-- ASISTENTE PASO A PASO: importe → categoría → cuenta → detalles -->
     <div id="addTransactionModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="transactionModalTitle">Nueva Transacción</h2>
-                <button class="modal-close" onclick="closeModal('addTransactionModal')" aria-label="Cerrar">×</button>
+        <div class="modal-content wizard">
+            <div class="wizard-header">
+                <button type="button" class="wizard-back" id="wizBack" onclick="wizardBack()" aria-label="Paso anterior">‹</button>
+                <div class="wizard-title">
+                    <h2 id="transactionModalTitle">Nuevo gasto</h2>
+                    <div class="wizard-dots" id="wizDots"></div>
+                </div>
+                <button type="button" class="modal-close" onclick="closeModal('addTransactionModal')" aria-label="Cerrar">×</button>
             </div>
-            <form class="modal-body" onsubmit="event.preventDefault(); saveTransaction()">
-                <input type="hidden" id="transactionType">
-                <div class="form-group"><label for="transactionAmount">Monto (€)</label><input type="text" id="transactionAmount" inputmode="decimal" autocomplete="off" placeholder="0,00"></div>
-                <div class="form-group"><label for="transactionDate">Fecha</label><input type="date" id="transactionDate"></div>
-                <div class="form-group"><label for="transactionCategory">Categoría</label><select id="transactionCategory"></select></div>
-                <div class="form-group"><label for="transactionAccount">Cuenta</label><select id="transactionAccount"></select></div>
-                <div class="form-group"><label for="transactionDescription">Descripción</label><input type="text" id="transactionDescription" placeholder="Opcional..."></div>
-                <label class="checkbox-row"><input type="checkbox" id="transactionRecurring"> Repetir cada mes</label>
-                <button type="submit" class="btn-primary full-width">Guardar</button>
+            <div class="wizard-summary" id="wizSummary"></div>
+
+            <div class="wizard-step" data-step="amount">
+                <div class="wizard-label">¿Cuánto?</div>
+                <div class="amount-display" id="wizAmountDisplay">0€</div>
+                <div class="amount-keypad">
+                    <button type="button" data-action="wizKey" data-value="1">1</button>
+                    <button type="button" data-action="wizKey" data-value="2">2</button>
+                    <button type="button" data-action="wizKey" data-value="3">3</button>
+                    <button type="button" data-action="wizKey" data-value="4">4</button>
+                    <button type="button" data-action="wizKey" data-value="5">5</button>
+                    <button type="button" data-action="wizKey" data-value="6">6</button>
+                    <button type="button" data-action="wizKey" data-value="7">7</button>
+                    <button type="button" data-action="wizKey" data-value="8">8</button>
+                    <button type="button" data-action="wizKey" data-value="9">9</button>
+                    <button type="button" data-action="wizKey" data-value=",">,</button>
+                    <button type="button" data-action="wizKey" data-value="0">0</button>
+                    <button type="button" data-action="wizKey" data-value="back" aria-label="Borrar">⌫</button>
+                </div>
+                <button type="button" class="btn-primary full-width wizard-next" onclick="wizAmountNext()">Siguiente</button>
+            </div>
+
+            <div class="wizard-step" data-step="category">
+                <div class="wizard-label">Categoría</div>
+                <div class="choice-grid" id="wizCategoryChoices"></div>
+            </div>
+
+            <div class="wizard-step" data-step="account">
+                <div class="wizard-label">Cuenta</div>
+                <div class="choice-grid" id="wizAccountChoices"></div>
+            </div>
+
+            <form class="wizard-step" data-step="details" onsubmit="event.preventDefault(); saveTransaction()">
+                <span class="wizard-field-label">Fecha</span>
+                <div class="chip-row" id="wizDateChips"></div>
+                <input type="date" id="wizDateOther" class="wizard-input" onchange="wizSetDate(this.value)">
+                <label class="wizard-field-label" for="wizDescription">Nota (opcional)</label>
+                <input type="text" id="wizDescription" class="wizard-input" placeholder="Ej: Mercadona" autocomplete="off" enterkeyhint="done">
+                <div class="chip-row" id="wizDescSuggestions"></div>
+                <label class="checkbox-row"><input type="checkbox" id="wizRecurring"> Repetir cada mes</label>
+                <button type="submit" class="btn-primary full-width wizard-next" id="wizSaveBtn">Guardar</button>
             </form>
         </div>
     </div>
