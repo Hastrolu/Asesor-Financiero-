@@ -435,6 +435,10 @@ body.modal-open { overflow: hidden; }
     display: flex; flex-direction: column; justify-content: center; gap: 2px; transition: background 0.1s;
 }
 .choice small { color: var(--text-muted); font-size: 0.68em; text-transform: uppercase; letter-spacing: 1px; }
+.choice-section {
+    grid-column: 1 / -1; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color);
+    color: var(--text-muted); font-size: 0.72em; text-transform: uppercase; letter-spacing: 2px;
+}
 .choice.selected { border-color: var(--olive-light); background: var(--olive-dark); }
 .choice:active { background: var(--olive-dark); }
 .wizard-field-label { display: block; color: var(--text-muted); font-size: 0.72em; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; }
