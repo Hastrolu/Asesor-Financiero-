@@ -135,6 +135,16 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
         const open = [...document.querySelectorAll('.modal.active')].pop();
         if (open) closeModal(open.id);
+        return;
+    }
+    // Teclado físico en el paso del importe
+    if (isWizardOpen() && wizSteps()[wiz.step] === 'amount') {
+        if (/^[0-9]$/.test(e.key)) wizKey(e.key);
+        else if (e.key === ',' || e.key === '.') wizKey(',');
+        else if (e.key === 'Backspace') wizKey('back');
+        else if (e.key === 'Enter') wizAmountNext();
+        else return;
+        e.preventDefault();
     }
 });
 
@@ -153,6 +163,18 @@ const ACTIONS = {
     deleteRecurring: d => deleteRecurring(Number(d.id)),
     openRecurring: () => openRecurringModal(),
     exportData: () => exportData(),
+    wizKey: d => wizKey(d.value),
+    wizGoto: d => wizGoTo(d.value),
+    wizCategory: d => { wiz.category = d.value; wizNext(); },
+    wizAccount: d => { wiz.account = d.value; wizNext(); },
+    wizDate: d => {
+        wiz.showOtherDate = d.value === 'other';
+        if (d.value === 'today') wiz.date = todayISO();
+        if (d.value === 'yesterday') wiz.date = yesterdayISO();
+        renderWizDetails();
+        if (d.value === 'other') $('wizDateOther').showPicker?.();
+    },
+    wizDesc: d => { $('wizDescription').value = d.value; },
     dismissBackup: () => { backupBannerDismissed = true; renderBanners(); }
 };
 
@@ -580,39 +602,203 @@ function updateCategoryFilter() {
 // TRANSACCIONES
 // ============================================
 
+// --- Asistente paso a paso: importe → categoría → cuenta → detalles ---
+// Cada toque en categoría/cuenta pasa solo al siguiente paso.
+let wiz = null;
+
 function openAddTransaction(type) {
-    $('transactionType').value = type;
-    $('transactionModalTitle').textContent = type === 'income' ? 'Nuevo Ingreso' : 'Nuevo Gasto';
-    $('transactionAmount').value = '';
-    $('transactionDescription').value = '';
-    $('transactionDate').value = todayISO();
-    $('transactionRecurring').checked = false;
-    $('transactionCategory').innerHTML = categoryOptionsHtml(type);
-    $('transactionAccount').innerHTML = accountOptionsHtml(data.accounts.includes(data.lastAccount) ? data.lastAccount : data.accounts[0]);
-    openModal('addTransactionModal', 'transactionAmount');
+    wiz = {
+        type, step: 0, amount: '', category: null, showOtherDate: false,
+        account: data.accounts.includes(data.lastAccount) ? data.lastAccount : data.accounts[0],
+        date: todayISO()
+    };
+    setText('transactionModalTitle', type === 'income' ? 'Nuevo ingreso' : 'Nuevo gasto');
+    $('addTransactionModal').classList.toggle('is-income', type === 'income');
+    $('wizDescription').value = '';
+    $('wizRecurring').checked = false;
+    renderWizard();
+    openModal('addTransactionModal');
+}
+
+// Si solo hay una cuenta, el paso de cuenta se salta
+function wizSteps() {
+    return data.accounts.length > 1 ? ['amount', 'category', 'account', 'details'] : ['amount', 'category', 'details'];
+}
+
+function wizGoTo(stepName) {
+    const i = wizSteps().indexOf(stepName);
+    if (i >= 0 && i <= wiz.step) { wiz.step = i; renderWizard(); }
+}
+
+function wizNext() {
+    wiz.step = Math.min(wiz.step + 1, wizSteps().length - 1);
+    renderWizard();
+}
+
+function wizardBack() {
+    if (wiz && wiz.step > 0) { wiz.step--; renderWizard(); }
+}
+
+function isWizardOpen() {
+    return !!wiz && $('addTransactionModal').classList.contains('active');
+}
+
+function renderWizard() {
+    const steps = wizSteps();
+    const current = steps[wiz.step];
+    document.querySelectorAll('#addTransactionModal .wizard-step').forEach(el => el.classList.toggle('active', el.dataset.step === current));
+    $('wizBack').style.visibility = wiz.step > 0 ? 'visible' : 'hidden';
+    setHtml('wizDots', steps.map((_, i) => `<span class="${i < wiz.step ? 'done' : i === wiz.step ? 'current' : ''}"></span>`).join(''));
+
+    // Lo ya elegido, en "chips" pulsables para volver a ese paso
+    const chips = [];
+    if (wiz.step > 0) chips.push(['amount', formatCurrency(parseWizAmount())]);
+    if (wiz.step > steps.indexOf('category')) chips.push(['category', wiz.category]);
+    if (steps.includes('account') && wiz.step > steps.indexOf('account')) chips.push(['account', wiz.account]);
+    setHtml('wizSummary', chips.map(([step, label]) => `<button type="button" class="summary-chip" data-action="wizGoto" data-value="${step}">${escapeHtml(label)}</button>`).join(''));
+
+    if (current === 'amount') renderWizAmount();
+    if (current === 'category') renderWizCategories();
+    if (current === 'account') renderWizAccounts();
+    if (current === 'details') renderWizDetails();
+}
+
+function parseWizAmount() {
+    return parseAmount(wiz.amount.replace(/,$/, '')) || 0;
+}
+
+function renderWizAmount() {
+    const [int, dec] = wiz.amount.split(',');
+    const intFormatted = Number(int || 0).toLocaleString('es-ES');
+    const display = $('wizAmountDisplay');
+    display.textContent = intFormatted + (dec !== undefined ? ',' + dec : '') + '€';
+    display.classList.toggle('empty', !wiz.amount);
+}
+
+function wizKey(key) {
+    let a = wiz.amount;
+    if (key === 'back') {
+        a = a.slice(0, -1);
+    } else if (key === ',') {
+        if (!a.includes(',')) a = (a || '0') + ',';
+    } else {
+        const [int, dec] = a.split(',');
+        if (dec !== undefined ? dec.length >= 2 : int.length >= 7) return;
+        a = a === '0' ? key : a + key;
+    }
+    wiz.amount = a;
+    navigator.vibrate?.(8);
+    renderWizAmount();
+}
+
+function wizAmountNext() {
+    if (!(parseWizAmount() > 0)) {
+        const display = $('wizAmountDisplay');
+        display.classList.remove('shake');
+        void display.offsetWidth; // reinicia la animación
+        display.classList.add('shake');
+        return;
+    }
+    wizNext();
+}
+
+// Las más usadas en los últimos 6 meses salen primero
+function categoryUsageCounts(type) {
+    const since = shiftMonth(getCurrentMonth(), -6);
+    const counts = {};
+    data.transactions.forEach(t => {
+        if (t.type === type && t.month >= since) counts[t.category] = (counts[t.category] || 0) + 1;
+    });
+    return counts;
+}
+
+function renderWizCategories() {
+    const counts = categoryUsageCounts(wiz.type);
+    const items = wiz.type === 'income'
+        ? data.incomeCategories.map(name => ({ name, group: '' }))
+        : Object.values(data.categoryGroups).flatMap(g => g.categories.map(name => ({ name, group: g.name })));
+    items.sort((a, b) => (counts[b.name] || 0) - (counts[a.name] || 0));
+    setHtml('wizCategoryChoices', items.map(i => `
+        <button type="button" class="choice${i.name === wiz.category ? ' selected' : ''}" data-action="wizCategory" data-value="${escapeHtml(i.name)}">
+            <span>${escapeHtml(i.name)}</span>${i.group ? `<small>${escapeHtml(i.group)}</small>` : ''}
+        </button>`).join(''));
+}
+
+function renderWizAccounts() {
+    const accounts = [wiz.account, ...data.accounts.filter(a => a !== wiz.account)];
+    setHtml('wizAccountChoices', accounts.map(a => `
+        <button type="button" class="choice${a === wiz.account ? ' selected' : ''}" data-action="wizAccount" data-value="${escapeHtml(a)}">
+            <span>${escapeHtml(a)}</span>${a === wiz.account ? '<small>Última usada</small>' : ''}
+        </button>`).join(''));
+}
+
+function yesterdayISO() {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return `${monthKey(d)}-${pad(d.getDate())}`;
+}
+
+function wizSetDate(value) {
+    if (!value) return;
+    wiz.date = value;
+    renderWizDetails();
+}
+
+function renderWizDetails() {
+    const today = todayISO(), yesterday = yesterdayISO();
+    const isOther = wiz.showOtherDate || (wiz.date !== today && wiz.date !== yesterday);
+    const chip = (value, label, selected) => `<button type="button" class="chip${selected ? ' selected' : ''}" data-action="wizDate" data-value="${value}">${label}</button>`;
+    setHtml('wizDateChips', chip('today', 'Hoy', !isOther && wiz.date === today)
+        + chip('yesterday', 'Ayer', !isOther && wiz.date === yesterday)
+        + chip('other', isOther ? escapeHtml(formatDate(wiz.date + 'T12:00')) : 'Otro día', isOther));
+    const other = $('wizDateOther');
+    other.style.display = isOther ? 'block' : 'none';
+    other.value = wiz.date;
+
+    // Notas que ya usaste en esta categoría, para no reescribirlas
+    const counts = {};
+    data.transactions.forEach(t => {
+        const desc = (t.description || '').trim();
+        if (t.type === wiz.type && t.category === wiz.category && desc) counts[desc] = (counts[desc] || 0) + 1;
+    });
+    const suggestions = Object.keys(counts).sort((a, b) => counts[b] - counts[a]).slice(0, 6);
+    setHtml('wizDescSuggestions', suggestions.map(s => `<button type="button" class="chip small" data-action="wizDesc" data-value="${escapeHtml(s)}">${escapeHtml(s)}</button>`).join(''));
+
+    setText('wizSaveBtn', `Guardar ${formatCurrency(parseWizAmount())}`);
 }
 
 function saveTransaction() {
-    const type = $('transactionType').value;
-    const dateValue = $('transactionDate').value;
-    const amount = parseAmount($('transactionAmount').value);
-    const category = $('transactionCategory').value;
-    const account = $('transactionAccount').value;
-    const description = $('transactionDescription').value.trim();
+    if (!wiz) return;
+    const amount = parseWizAmount();
+    if (!(amount > 0)) { wizGoTo('amount'); return; }
+    if (!wiz.date) { showNotification('Elige una fecha', 'warning'); return; }
 
-    if (!(amount > 0)) { showNotification('Introduce un monto mayor que 0', 'warning'); return; }
-    if (!dateValue) { showNotification('Elige una fecha', 'warning'); return; }
-
-    const { month, day } = splitDate(dateValue);
-    data.transactions.push({ id: newId(), type, month, day, amount, category, account, description, date: new Date().toISOString() });
+    const { type, category, account } = wiz;
+    const description = $('wizDescription').value.trim();
+    const { month, day } = splitDate(wiz.date);
+    const tx = { id: newId(), type, month, day, amount, category, account, description, date: new Date().toISOString() };
+    data.transactions.push(tx);
     data.lastAccount = account;
-    if ($('transactionRecurring').checked) {
-        data.recurring.push({ id: newId(), type, category, amount, account, description, day, lastMonth: month });
+    let recurring = null;
+    if ($('wizRecurring').checked) {
+        recurring = { id: newId(), type, category, amount, account, description, day, lastMonth: month };
+        data.recurring.push(recurring);
     }
     saveData();
     closeModal('addTransactionModal');
+    wiz = null;
     refreshAll();
-    showNotification('Transacción guardada', 'success');
+    showNotification(`${type === 'income' ? 'Ingreso' : 'Gasto'} guardado: ${category} ${formatCurrency(amount)}`, 'success', {
+        actionLabel: 'Deshacer',
+        duration: UNDO_DURATION,
+        onAction: () => {
+            data.transactions = data.transactions.filter(t => t.id !== tx.id);
+            if (recurring) data.recurring = data.recurring.filter(r => r.id !== recurring.id);
+            saveData();
+            refreshAll();
+            showNotification('Deshecho', 'success');
+        }
+    });
 }
 
 function openEditTransaction(id) {
@@ -1264,15 +1450,58 @@ function calculateCompoundInterest() {
 // MODALES Y NOTIFICACIONES
 // ============================================
 
+// Botón "Atrás" del móvil: cierra la ventana abierta (o vuelve un paso en el asistente)
+// en vez de salir de la app. Se usa una sola entrada de historial mientras haya ventanas abiertas.
+const modalStack = [];
+let modalHistoryEntry = false;
+let ignoredPops = 0;
+
+function pushModalHistory() {
+    if (modalHistoryEntry) return;
+    history.pushState({ modal: true }, '');
+    modalHistoryEntry = true;
+}
+
+window.addEventListener('popstate', () => {
+    if (ignoredPops) { ignoredPops--; return; }
+    modalHistoryEntry = false;
+    const top = modalStack[modalStack.length - 1];
+    if (!top) return;
+    if (top === 'addTransactionModal' && wiz && wiz.step > 0) {
+        wizardBack();
+    } else {
+        closeModal(top, { fromHistory: true });
+    }
+    if (modalStack.length) pushModalHistory();
+});
+
 function openModal(id, focusId) {
-    $(id).classList.add('active');
+    const el = $(id);
+    if (!el.classList.contains('active')) {
+        el.classList.add('active');
+        modalStack.push(id);
+    }
     document.body.classList.add('modal-open');
+    pushModalHistory();
     if (focusId) setTimeout(() => $(focusId)?.focus(), 50);
 }
 
-function closeModal(id) {
-    $(id).classList.remove('active');
-    if (!document.querySelector('.modal.active')) document.body.classList.remove('modal-open');
+function closeModal(id, { fromHistory = false } = {}) {
+    const el = $(id);
+    if (!el.classList.contains('active')) return;
+    el.classList.remove('active');
+    const i = modalStack.lastIndexOf(id);
+    if (i >= 0) modalStack.splice(i, 1);
+    if (modalStack.length) return;
+    document.body.classList.remove('modal-open');
+    // Se espera un instante por si se abre otra ventana justo después (no tocar el historial)
+    if (!fromHistory) setTimeout(() => {
+        if (!modalStack.length && modalHistoryEntry) {
+            modalHistoryEntry = false;
+            ignoredPops++;
+            history.back();
+        }
+    }, 0);
 }
 
 // callback(valor) puede devolver un texto de error para no cerrar la ventana
