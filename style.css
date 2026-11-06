@@ -17,6 +17,10 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* Toques más rápidos en móvil: sin retardo de doble toque ni recuadro azul */
+html { -webkit-tap-highlight-color: transparent; }
+button, a, input, select, label, [data-action] { touch-action: manipulation; }
+
 body {
     font-family: 'Georgia', 'Times New Roman', serif;
     background: var(--bg-primary);
@@ -382,6 +386,72 @@ body.modal-open { overflow: hidden; }
 .modal-body { padding: 30px; }
 .modal-actions { display: flex; gap: 15px; margin-top: 20px; }
 .modal-actions button { flex: 1; }
+
+/* ASISTENTE PASO A PASO */
+.wizard { max-width: 440px; }
+.wizard-header {
+    display: flex; align-items: center; gap: 8px; padding: 12px 14px;
+    border-bottom: 1px solid var(--border-color);
+}
+.wizard-back {
+    background: none; border: none; color: var(--text-primary); font-size: 2.2em; line-height: 1;
+    width: 40px; height: 40px; cursor: pointer; font-family: inherit;
+}
+.wizard-title { flex: 1; text-align: center; }
+.wizard-title h2 { font-size: 0.9em; font-weight: 400; letter-spacing: 3px; text-transform: uppercase; color: var(--olive-lighter); margin: 0; }
+.wizard-dots { display: flex; justify-content: center; gap: 6px; margin-top: 6px; }
+.wizard-dots span { width: 22px; height: 3px; background: var(--border-color); transition: background 0.2s; }
+.wizard-dots span.done { background: var(--olive-main); }
+.wizard-dots span.current { background: var(--olive-lighter); }
+.wizard-summary { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 16px 0; }
+.wizard-summary:empty { display: none; }
+.summary-chip {
+    background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-secondary);
+    font-family: inherit; font-size: 0.85em; padding: 4px 10px; cursor: pointer;
+}
+.wizard-step { display: none; padding: 14px 18px 18px; }
+.wizard-step.active { display: block; animation: stepIn 0.18s ease-out; }
+@keyframes stepIn { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+.wizard-label { text-align: center; color: var(--text-muted); text-transform: uppercase; letter-spacing: 3px; font-size: 0.75em; margin-bottom: 10px; }
+.amount-display {
+    text-align: center; font-size: 2.8em; line-height: 1.2; color: var(--accent-negative);
+    margin-bottom: 18px; overflow-wrap: anywhere;
+}
+.is-income .amount-display { color: var(--accent-positive); }
+.amount-display.empty { color: var(--text-muted); }
+.amount-display.shake { animation: shake 0.3s; }
+@keyframes shake { 25% { transform: translateX(-8px); } 50% { transform: translateX(8px); } 75% { transform: translateX(-4px); } }
+.amount-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+.amount-keypad button {
+    height: 56px; background: #111; border: 1px solid #222; color: var(--text-primary);
+    font-family: inherit; font-size: 1.4em; cursor: pointer; transition: background 0.1s;
+}
+.amount-keypad button:active { background: var(--olive-dark); }
+.wizard-next { padding: 15px; font-size: 1em; }
+.choice-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.choice {
+    min-height: 56px; padding: 10px 12px; background: #111; border: 1px solid #222;
+    color: var(--text-primary); font-family: inherit; font-size: 1em; text-align: left; cursor: pointer;
+    display: flex; flex-direction: column; justify-content: center; gap: 2px; transition: background 0.1s;
+}
+.choice small { color: var(--text-muted); font-size: 0.68em; text-transform: uppercase; letter-spacing: 1px; }
+.choice.selected { border-color: var(--olive-light); background: var(--olive-dark); }
+.choice:active { background: var(--olive-dark); }
+.wizard-field-label { display: block; color: var(--text-muted); font-size: 0.72em; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.chip-row:empty { display: none; }
+.chip {
+    padding: 10px 16px; background: #111; border: 1px solid #222; color: var(--text-secondary);
+    font-family: inherit; font-size: 0.95em; cursor: pointer;
+}
+.chip.small { padding: 6px 12px; font-size: 0.85em; }
+.chip.selected { border-color: var(--olive-light); background: var(--olive-dark); color: var(--text-primary); }
+.wizard-input {
+    width: 100%; padding: 12px 14px; margin-bottom: 12px; background: var(--bg-tertiary);
+    border: 1px solid var(--border-color); color: var(--text-primary); font-family: inherit; font-size: 1em;
+}
+.wizard-input:focus { outline: none; border-color: var(--olive-main); }
+#wizDateOther { margin-top: -6px; margin-bottom: 16px; }
 
 /* DETALLES */
 .details-center { text-align: center; padding: 20px; }
@@ -760,8 +830,14 @@ body.modal-open { overflow: hidden; }
     /* Calculadoras */
     .calculators-grid { grid-template-columns: 1fr; }
 
-    /* Modales */
-    .modal-content { width: 95%; }
+    /* Modales: hoja que sube desde abajo (a mano del pulgar) */
+    .modal { align-items: flex-end; }
+    .modal-content, .modal-small, .wizard {
+        width: 100%; max-width: none; max-height: 92vh;
+        border: none; border-top: 1px solid var(--olive-dark); border-radius: 14px 14px 0 0;
+        padding-bottom: env(safe-area-inset-bottom);
+        animation: sheetUp 0.22s ease-out;
+    }
     .modal-header { padding: 20px; }
     .modal-header h2 { font-size: 1.1em; }
     .modal-body { padding: 20px; }
@@ -775,6 +851,16 @@ body.modal-open { overflow: hidden; }
         left: 10px;
         top: 10px;
     }
+}
+
+@keyframes sheetUp { from { transform: translateY(100%); } to { transform: none; } }
+
+/* iPhone: respetar la barra de estado y la barra inferior en modo app */
+@media (max-width: 768px) {
+    .mobile-header { padding-top: calc(15px + env(safe-area-inset-top)); }
+    .mobile-nav { height: calc(60px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); }
+    .container { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+    .notification { top: calc(10px + env(safe-area-inset-top)); }
 }
 
 /* ============================================
