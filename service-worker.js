@@ -2,7 +2,7 @@
 // SERVICE WORKER - Gestor Financiero PWA
 // ============================================
 // Sube este número cuando cambies los archivos de la app para limpiar la caché vieja
-const SW_VERSION = '1.1.0';
+const SW_VERSION = '1.2.0';
 const CACHE_NAME = 'finanzas-v' + SW_VERSION;
 
 const ASSETS_TO_CACHE = [
