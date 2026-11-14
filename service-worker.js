@@ -2,7 +2,7 @@
 // SERVICE WORKER - Gestor Financiero PWA
 // ============================================
 // Sube este número cuando cambies los archivos de la app para limpiar la caché vieja
-const SW_VERSION = '1.2.0';
+const SW_VERSION = '2.0.0';
 const CACHE_NAME = 'finanzas-v' + SW_VERSION;
 
 const ASSETS_TO_CACHE = [
@@ -12,8 +12,7 @@ const ASSETS_TO_CACHE = [
     './script.js',
     './manifest.json',
     './icon-192.png',
-    './icon-512.png',
-    'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js'
+    './icon-512.png'
 ];
 
 self.addEventListener('install', event => {
@@ -59,7 +58,7 @@ self.addEventListener('fetch', event => {
                 .catch(() => caches.match(request).then(cached => cached || (request.mode === 'navigate' ? caches.match('./index.html') : undefined)))
         );
     } else {
-        // Resto (Chart.js, iconos): caché primero
+        // Resto (iconos): caché primero
         event.respondWith(
             caches.match(request).then(cached => cached || fetch(request).then(response => putInCache(request, response)))
         );
