@@ -1,12 +1,12 @@
 {
   "name": "Gestor Financiero Personal",
   "short_name": "Finanzas",
-  "description": "Control de gastos, ingresos e inversiones",
+  "description": "Control de gastos e ingresos",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#0a0a0a",
-  "theme_color": "#4a5c4a",
+  "background_color": "#0d0d0d",
+  "theme_color": "#0d0d0d",
   "orientation": "portrait-primary",
   "icons": [
     {
