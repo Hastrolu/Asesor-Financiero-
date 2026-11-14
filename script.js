@@ -1,15 +1,16 @@
 // ============================================
 // CONFIGURACIÓN DEL PIN
 // ============================================
-// ⚠️ PARA CAMBIAR TU PIN, MODIFICA EL VALOR ENTRE COMILLAS AQUÍ:
+// ⚠️ PARA CAMBIAR TU PIN, MODIFICA EL VALOR ENTRE COMILLAS AQUÍ (exactamente 6 dígitos):
 const PIN_CODE = '123654';
-// ⚠️ Debe ser exactamente 6 dígitos
 // ============================================
 
 const STORAGE_KEY = 'financeManagerData';
+const CORRUPT_KEY = STORAGE_KEY + '_corrupto';
 const BACKUP_REMINDER_DAYS = 30;
 const UNDO_DURATION = 5000;
-const CHART_JS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js';
+const PAGE_SIZE = 80; // movimientos que se pintan de golpe (el resto con "Ver más")
+const DESKTOP = window.matchMedia('(min-width: 900px)');
 
 const DEFAULT_GROUPS = {
     basicos: { name: 'Gastos Básicos', percent: 20, categories: ['Salud', 'Transporte'] },
@@ -18,9 +19,8 @@ const DEFAULT_GROUPS = {
 };
 const DEFAULT_ACCOUNTS = ['Efectivo', 'Cuenta Corriente'];
 const DEFAULT_INCOME_CATEGORIES = ['Salario', 'Servicio', 'Otros'];
-
-const BUBBLE_COLORS = ['#4a5c4a', '#6b8e6b', '#8fb88f', '#3a4a3a', '#5a6c5a', '#7a9e7a', '#4a90a4'];
-const CHART_COLORS = ['#E74C3C', '#3498DB', '#F1C40F', '#2ECC71', '#9B59B6', '#E67E22', '#8B4513', '#1ABC9C', '#E91E63', '#FF5722', '#607D8B', '#CDDC39', '#00BCD4', '#795548'];
+const WEEKDAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+const WEEKDAY_NAMES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
 // ============================================
 // ESTADO
@@ -28,221 +28,29 @@ const CHART_COLORS = ['#E74C3C', '#3498DB', '#F1C40F', '#2ECC71', '#9B59B6', '#E
 
 let data = createDefaultData();
 let currentPin = '';
-let currentSection = 'dashboard';
-let evolutionChart = null, distributionChart = null;
-let chartState = { isYearly: false, currentMonth: null, currentYear: null };
-let distributionState = { currentMonth: null };
+let currentSection = 'inicio';
 let editValueCallback = null;
 let backupBannerDismissed = false;
 let pendingStartupMessage = null;
 let lastId = 0;
+let wiz = null; // asistente de nuevo movimiento
+const listState = { type: 'all', limit: PAGE_SIZE };
+const statsState = { mode: 'month', month: null, year: null };
 
 function createDefaultData() {
     return {
-        setupComplete: false,
-        emergencyGoal: 5000,
-        categoryGroups: JSON.parse(JSON.stringify(DEFAULT_GROUPS)),
+        categoryGroups: structuredCloneSafe(DEFAULT_GROUPS),
         accounts: [...DEFAULT_ACCOUNTS],
         incomeCategories: [...DEFAULT_INCOME_CATEGORIES],
         recurring: [],
-        investmentValues: {},
         lastAccount: null,
         lastBackup: null,
         transactions: []
     };
 }
 
-// ============================================
-// SISTEMA DE PIN
-// ============================================
-
-function isPinScreenActive() {
-    return document.getElementById('pinScreen').classList.contains('active');
-}
-
-function addPinDigit(digit) {
-    if (currentPin.length >= 6) return;
-    currentPin += digit;
-    hidePinError();
-    updatePinDots();
-    if (currentPin.length === 6) setTimeout(checkPin, 200);
-}
-
-function deletePinDigit() {
-    if (!currentPin.length) return;
-    currentPin = currentPin.slice(0, -1);
-    updatePinDots();
-    hidePinError();
-}
-
-function updatePinDots() {
-    document.querySelectorAll('.pin-dot').forEach((dot, i) => dot.classList.toggle('filled', i < currentPin.length));
-}
-
-function checkPin() {
-    if (currentPin === PIN_CODE) {
-        unlockApp();
-    } else {
-        document.getElementById('pinError').classList.add('show');
-        currentPin = '';
-        updatePinDots();
-    }
-}
-
-function hidePinError() {
-    document.getElementById('pinError').classList.remove('show');
-}
-
-function unlockApp() {
-    document.getElementById('pinScreen').classList.remove('active');
-    document.getElementById('appContainer').classList.add('unlocked');
-    refreshAll();
-    if (pendingStartupMessage) {
-        showNotification(pendingStartupMessage, 'info', { duration: 8000 });
-        pendingStartupMessage = null;
-    }
-}
-
-// ============================================
-// INICIALIZACIÓN
-// ============================================
-
-document.addEventListener('DOMContentLoaded', () => {
-    loadData();
-    const currentMonth = getCurrentMonth();
-    chartState.currentMonth = currentMonth;
-    chartState.currentYear = getCurrentYear();
-    distributionState.currentMonth = currentMonth;
-
-    updateMonthFilters(true);
-    showSection(data.setupComplete ? 'dashboard' : 'inversiones');
-    registerServiceWorker();
-});
-
-function registerServiceWorker() {
-    // Solo funciona servido por http(s), no abriendo el archivo directamente (file://)
-    if (!('serviceWorker' in navigator) || !location.protocol.startsWith('http')) return;
-    navigator.serviceWorker.register('service-worker.js').catch(err => console.warn('Service worker no registrado:', err));
-}
-
-// Atajos de teclado: PIN con teclado físico y Esc para cerrar ventanas
-document.addEventListener('keydown', e => {
-    if (isPinScreenActive()) {
-        if (/^[0-9]$/.test(e.key)) addPinDigit(e.key);
-        else if (e.key === 'Backspace') deletePinDigit();
-        return;
-    }
-    if (e.key === 'Escape') {
-        const open = [...document.querySelectorAll('.modal.active')].pop();
-        if (open) closeModal(open.id);
-        return;
-    }
-    // Teclado físico en el paso del importe
-    if (isWizardOpen() && wizSteps()[wiz.step] === 'amount') {
-        if (/^[0-9]$/.test(e.key)) wizKey(e.key);
-        else if (e.key === ',' || e.key === '.') wizKey(',');
-        else if (e.key === 'Backspace') wizKey('back');
-        else if (e.key === 'Enter') wizAmountNext();
-        else return;
-        e.preventDefault();
-    }
-});
-
-// Clics en contenido generado dinámicamente (data-action="..." data-*)
-const ACTIONS = {
-    editTransaction: d => openEditTransaction(Number(d.id)),
-    deleteTransaction: d => removeTransactionWithUndo(Number(d.id)),
-    setInvestmentValue: d => setInvestmentValue(d.value),
-    editCategory: d => openCategoryModal(d.value),
-    removeCategory: d => removeExpenseCategory(d.value),
-    removeAccount: d => removeListItem('accounts', d.value),
-    removeIncomeCategory: d => removeListItem('incomeCategories', d.value),
-    addRecurring: d => addRecurring(Number(d.id)),
-    skipRecurring: d => skipRecurring(Number(d.id)),
-    editRecurringAmount: d => editRecurringAmount(Number(d.id)),
-    deleteRecurring: d => deleteRecurring(Number(d.id)),
-    openRecurring: () => openRecurringModal(),
-    exportData: () => exportData(),
-    wizKey: d => wizKey(d.value),
-    wizGoto: d => wizGoTo(d.value),
-    wizCategory: d => { wiz.category = d.value; wizNext(); },
-    wizAccount: d => { wiz.account = d.value; wizNext(); },
-    wizDate: d => {
-        wiz.showOtherDate = d.value === 'other';
-        if (d.value === 'today') wiz.date = todayISO();
-        if (d.value === 'yesterday') wiz.date = yesterdayISO();
-        renderWizDetails();
-        if (d.value === 'other') $('wizDateOther').showPicker?.();
-    },
-    wizDesc: d => { $('wizDescription').value = d.value; },
-    dismissBackup: () => { backupBannerDismissed = true; renderBanners(); }
-};
-
-document.addEventListener('click', e => {
-    const el = e.target.closest('[data-action]');
-    if (!el || !ACTIONS[el.dataset.action]) return;
-    e.preventDefault();
-    e.stopPropagation();
-    ACTIONS[el.dataset.action](el.dataset, e);
-});
-
-// Clic fuera de una ventana la cierra
-window.addEventListener('click', e => {
-    if (e.target.classList.contains('modal')) closeModal(e.target.id);
-});
-
-// ============================================
-// GESTIÓN DE DATOS
-// ============================================
-
-function loadData() {
-    let stored = null;
-    try { stored = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch (err) { console.error('Datos corruptos', err); }
-    if (!stored) return;
-    const { normalized, orphans } = normalizeData(stored);
-    data = normalized;
-    if (orphans.length) {
-        saveData();
-        pendingStartupMessage = `Categorías sin grupo movidas a "${data.categoryGroups.ocio?.name || 'otro grupo'}": ${orphans.join(', ')}. Pulsa la categoría en Inversiones para cambiarla de grupo.`;
-    }
-}
-
-// Completa campos que falten (datos antiguos o importados) y arregla categorías sueltas
-function normalizeData(raw) {
-    const d = Object.assign(createDefaultData(), raw);
-    if (!d.categoryGroups || typeof d.categoryGroups !== 'object') d.categoryGroups = JSON.parse(JSON.stringify(DEFAULT_GROUPS));
-    for (const [key, group] of Object.entries(DEFAULT_GROUPS)) {
-        if (!d.categoryGroups[key]) d.categoryGroups[key] = JSON.parse(JSON.stringify(group));
-        if (!Array.isArray(d.categoryGroups[key].categories)) d.categoryGroups[key].categories = [];
-    }
-    if (!Array.isArray(d.transactions)) d.transactions = [];
-    if (!Array.isArray(d.accounts) || !d.accounts.length) d.accounts = [...DEFAULT_ACCOUNTS];
-    if (!Array.isArray(d.incomeCategories) || !d.incomeCategories.length) d.incomeCategories = [...DEFAULT_INCOME_CATEGORIES];
-    if (!Array.isArray(d.recurring)) d.recurring = [];
-    if (!d.investmentValues || typeof d.investmentValues !== 'object') d.investmentValues = {};
-    if (!(d.emergencyGoal > 0)) d.emergencyGoal = 5000;
-
-    d.transactions = d.transactions.filter(t => t && typeof t.month === 'string');
-    d.transactions.forEach(t => { t.amount = Number(t.amount) || 0; });
-
-    // Gastos cuya categoría no está en ningún grupo → se añaden a Ocio para que cuenten
-    const known = new Set(Object.values(d.categoryGroups).flatMap(g => g.categories));
-    const orphans = [...new Set(d.transactions.filter(t => t.type === 'expense' && !known.has(t.category)).map(t => t.category))];
-    const target = d.categoryGroups.ocio || Object.values(d.categoryGroups)[0];
-    target.categories.push(...orphans);
-
-    return { normalized: d, orphans };
-}
-
-function saveData() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-}
-
-function newId() {
-    let id = Date.now();
-    if (id <= lastId) id = lastId + 1;
-    lastId = id;
-    return id;
+function structuredCloneSafe(value) {
+    return JSON.parse(JSON.stringify(value));
 }
 
 // ============================================
@@ -253,6 +61,8 @@ const $ = id => document.getElementById(id);
 const setText = (id, text) => { const el = $(id); if (el) el.textContent = text; };
 const setHtml = (id, html) => { const el = $(id); if (el) el.innerHTML = html; };
 const pad = n => String(n).padStart(2, '0');
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const capitalize = s => s.charAt(0).toUpperCase() + s.slice(1);
 
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -262,39 +72,102 @@ function normalizeText(text) {
     return String(text || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 
-function getAllCategories() {
-    return Object.values(data.categoryGroups).flatMap(g => g.categories);
+// --- Números ---
+function makeFormatter(options) {
+    try { return new Intl.NumberFormat('es-ES', { useGrouping: 'always', ...options }); }
+    catch { return new Intl.NumberFormat('es-ES', options); }
+}
+const eurFormatter = makeFormatter({ style: 'currency', currency: 'EUR' });
+const eurRoundFormatter = makeFormatter({ style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+const intFormatter = makeFormatter({ maximumFractionDigits: 0 });
+
+const formatCurrency = amount => eurFormatter.format(amount || 0);
+const formatRound = amount => eurRoundFormatter.format(amount || 0);
+const formatPercent = (value, decimals = 0) => value === null || !Number.isFinite(value) ? '—' : value.toFixed(decimals) + '%';
+const amountToInput = amount => String(amount).replace('.', ',');
+
+// Acepta "12,5", "12.5" y "1.234,56"
+function parseAmount(value) {
+    let text = String(value ?? '').trim().replace(/\s|€/g, '');
+    if (text.includes(',')) text = text.replace(/\./g, '').replace(',', '.');
+    else if (/^[1-9]\d{0,2}(\.\d{3})+$/.test(text)) text = text.replace(/\./g, ''); // "1.500" = mil quinientos
+    if (!/^\d*\.?\d+$/.test(text)) return null;
+    return Math.round(parseFloat(text) * 100) / 100;
 }
 
-function findCategoryGroup(category) {
-    return Object.keys(data.categoryGroups).find(key => data.categoryGroups[key].categories.includes(category));
+// Tope "redondo" para el eje de una gráfica (1, 2, 2.5, 5 o 10 × potencia de 10)
+function niceMax(value) {
+    if (!(value > 0)) return 1;
+    const power = Math.pow(10, Math.floor(Math.log10(value)));
+    return [1, 1.5, 2, 3, 4, 5, 6, 8, 10].map(m => m * power).find(m => value <= m);
 }
 
-function isInvestmentCategory(category) {
-    return data.categoryGroups.inversion.categories.includes(category);
+// --- Fechas ---
+const monthKey = date => `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
+const getCurrentMonth = () => monthKey(new Date());
+const getCurrentYear = () => new Date().getFullYear();
+const toISO = date => `${monthKey(date)}-${pad(date.getDate())}`;
+const todayISO = () => toISO(new Date());
+const monthDate = (month, day = 1) => { const [y, m] = month.split('-').map(Number); return new Date(y, m - 1, day); };
+const shiftMonth = (month, delta) => { const d = monthDate(month); d.setMonth(d.getMonth() + delta); return monthKey(d); };
+const daysInMonth = month => { const [y, m] = month.split('-').map(Number); return new Date(y, m, 0).getDate(); };
+const splitDate = iso => ({ month: iso.slice(0, 7), day: Number(iso.slice(8, 10)) });
+const formatMonth = month => monthDate(month).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+const monthName = month => monthDate(month).toLocaleDateString('es-ES', { month: 'long' });
+const shortMonthName = month => monthDate(month).toLocaleDateString('es-ES', { month: 'short' }).replace('.', '');
+const formatDate = iso => new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+const daysSince = iso => Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+
+function yesterdayISO() {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return toISO(d);
 }
 
-// Ajuste de patrimonio: resta del patrimonio pero no cuenta como gasto real
+// Día del movimiento. Los antiguos no lo guardaban: se deduce de cuándo se apuntó, si fue ese mismo mes
+function txDay(t) {
+    if (t.day) return t.day;
+    if (t._day === undefined) {
+        const created = t.date ? new Date(t.date) : null;
+        const value = created && !isNaN(created) && monthKey(created) === t.month ? created.getDate() : null;
+        Object.defineProperty(t, '_day', { value, configurable: true, enumerable: false }); // no se guarda en el JSON
+    }
+    return t._day;
+}
+
+function formatTxDate(t, { weekday = false } = {}) {
+    const day = txDay(t);
+    if (!day) return capitalize(formatMonth(t.month));
+    const options = { day: 'numeric', month: 'short' };
+    if (weekday) options.weekday = 'short';
+    if (!t.month.startsWith(String(getCurrentYear()))) options.year = '2-digit';
+    return monthDate(t.month, day).toLocaleDateString('es-ES', options);
+}
+
+// --- Categorías y tipos de movimiento ---
+const getAllCategories = () => Object.values(data.categoryGroups).flatMap(g => g.categories);
+const findCategoryGroup = category => Object.keys(data.categoryGroups).find(key => data.categoryGroups[key].categories.includes(category));
+const isInvestmentCategory = category => data.categoryGroups.inversion.categories.includes(category);
+
+// Ajuste de patrimonio (nota "AJUSTE" o "REGULACION"): resta del patrimonio pero no cuenta como gasto
 function isAdjustment(t) {
-    const desc = (t.description || '').toUpperCase();
-    return desc.includes('REGULACION') || desc.includes('AJUSTE');
+    return /\b(regulacion|ajuste)\b/.test(normalizeText(t.description));
 }
 
-// Filtros de transacciones
+// 'income' | 'investment' | 'adjustment' | 'expense'
+function txKind(t) {
+    if (t.type === 'income') return 'income';
+    if (isInvestmentCategory(t.category)) return 'investment';
+    return isAdjustment(t) ? 'adjustment' : 'expense';
+}
+
 const isIncome = t => t.type === 'income';
-const isInvestment = t => t.type === 'expense' && isInvestmentCategory(t.category);
-const isNonInvestmentExpense = t => t.type === 'expense' && !isInvestmentCategory(t.category);
-const isRealExpense = t => isNonInvestmentExpense(t) && !isAdjustment(t);
+const isRealExpense = t => txKind(t) === 'expense';
 const inMonth = month => t => t.month === month;
-const inYear = year => t => t.month.startsWith(String(year));
+const inYear = year => { const prefix = year + '-'; return t => t.month.startsWith(prefix); };
 
-function txWhere(...predicates) {
-    return data.transactions.filter(t => predicates.every(p => p(t)));
-}
-
-function sumAmounts(list) {
-    return list.reduce((s, t) => s + t.amount, 0);
-}
+const txWhere = (...predicates) => data.transactions.filter(t => predicates.every(p => p(t)));
+const sumAmounts = list => list.reduce((s, t) => s + t.amount, 0);
 
 function sumBy(list, keyFn) {
     const totals = {};
@@ -302,134 +175,427 @@ function sumBy(list, keyFn) {
     return totals;
 }
 
-// Orden: mes, día y fecha de creación (más reciente primero)
+// Más reciente primero: mes, día y hora en que se apuntó
 function compareTransactions(a, b) {
-    return b.month.localeCompare(a.month) || (b.day || 0) - (a.day || 0) || String(b.date || '').localeCompare(String(a.date || ''));
+    return b.month.localeCompare(a.month) || (txDay(b) || 0) - (txDay(a) || 0) || String(b.date || '').localeCompare(String(a.date || ''));
 }
 
-// Fechas
-function monthKey(date) { return `${date.getFullYear()}-${pad(date.getMonth() + 1)}`; }
-function getCurrentMonth() { return monthKey(new Date()); }
-function getCurrentYear() { return new Date().getFullYear(); }
-function shiftMonth(month, delta) {
-    const [y, m] = month.split('-').map(Number);
-    return monthKey(new Date(y, m - 1 + delta, 1));
-}
-function daysInMonth(month) {
-    const [y, m] = month.split('-').map(Number);
-    return new Date(y, m, 0).getDate();
-}
-function todayISO() {
-    const d = new Date();
-    return `${monthKey(d)}-${pad(d.getDate())}`;
-}
-function splitDate(iso) {
-    return { month: iso.slice(0, 7), day: Number(iso.slice(8, 10)) };
-}
-function formatMonth(month) {
-    const [y, m] = month.split('-').map(Number);
-    return new Date(y, m - 1, 1).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
-}
-function monthName(month) {
-    const [y, m] = month.split('-').map(Number);
-    return new Date(y, m - 1, 1).toLocaleDateString('es-ES', { month: 'long' });
-}
-function formatShortMonth(month) {
-    const [y, m] = month.split('-').map(Number);
-    return new Date(y, m - 1, 1).toLocaleDateString('es-ES', { month: 'short', year: '2-digit' });
-}
-function formatTxDate(t) {
-    if (!t.day) return formatMonth(t.month);
-    const [y, m] = t.month.split('-').map(Number);
-    return new Date(y, m - 1, t.day).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-function formatDate(iso) {
-    return new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-function daysSince(iso) {
-    return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
-}
-
-function formatCurrency(amount) {
-    return (amount || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€';
-}
-function formatPercent(value, decimals = 1) {
-    return value === null || !Number.isFinite(value) ? '—' : value.toFixed(decimals) + '%';
-}
-// Acepta "12,5", "12.5" y "1.234,56"
-function parseAmount(value) {
-    let text = String(value ?? '').trim().replace(/\s|€/g, '');
-    if (text.includes(',')) text = text.replace(/\./g, '').replace(',', '.');
-    else if (/^[1-9]\d{0,2}(\.\d{3})+$/.test(text)) text = text.replace(/\./g, ''); // "1.500" = mil quinientos
-    if (!/^-?\d*\.?\d+$/.test(text)) return null;
-    return parseFloat(text);
-}
-
-// Etiqueta "▲ 12% vs julio". higherIsBad: para gastos subir es malo
-function deltaBadge(current, previous, prevLabel, higherIsBad = true) {
-    if (!previous) return '';
-    const pct = ((current - previous) / previous) * 100;
-    if (Math.abs(pct) < 0.5) return `<span class="delta neutral">= que ${escapeHtml(prevLabel)}</span>`;
-    const up = pct > 0;
-    const bad = up === higherIsBad;
-    return `<span class="delta ${bad ? 'bad' : 'good'}">${up ? '▲' : '▼'} ${Math.abs(pct).toFixed(0)}% vs ${escapeHtml(prevLabel)}</span>`;
-}
-
+// --- HTML repetido ---
 function optionsHtml(values, selected) {
     return values.map(v => `<option value="${escapeHtml(v)}"${v === selected ? ' selected' : ''}>${escapeHtml(v)}</option>`).join('');
 }
 
-// Desplegable de categorías. Si la categoría actual ya no existe, se añade para no cambiarla sin querer
-function categoryOptionsHtml(type, selected) {
-    if (type === 'income') {
-        const cats = selected && !data.incomeCategories.includes(selected) ? [...data.incomeCategories, selected] : data.incomeCategories;
-        return optionsHtml(cats, selected);
-    }
+// Añade el valor actual a la lista si ya no existe, para no cambiarlo sin querer al editar
+const withCurrent = (list, current) => current && !list.includes(current) ? [...list, current] : list;
+
+function categoryOptionsHtml(type, selected, exclude) {
+    if (type === 'income') return optionsHtml(withCurrent(data.incomeCategories, selected), selected);
     let html = Object.values(data.categoryGroups)
-        .map(g => `<optgroup label="${escapeHtml(g.name)}">${optionsHtml(g.categories, selected)}</optgroup>`).join('');
+        .map(g => `<optgroup label="${escapeHtml(g.name)}">${optionsHtml(g.categories.filter(c => c !== exclude), selected)}</optgroup>`).join('');
     if (selected && !getAllCategories().includes(selected)) html += `<optgroup label="Sin grupo">${optionsHtml([selected], selected)}</optgroup>`;
     return html;
 }
 
-function accountOptionsHtml(selected) {
-    const accounts = selected && !data.accounts.includes(selected) ? [...data.accounts, selected] : data.accounts;
-    return optionsHtml(accounts, selected);
+// Etiqueta "▲ 12% vs octubre". higherIsBad: en gastos subir es malo
+function deltaBadge(current, previous, prevLabel, higherIsBad = true) {
+    if (!previous) return '';
+    const pct = ((current - previous) / previous) * 100;
+    const vs = prevLabel ? ` <span class="delta-vs">vs ${escapeHtml(prevLabel)}</span>` : '';
+    if (Math.abs(pct) < 0.5) return `<span class="delta neutral">= igual${vs}</span>`;
+    const up = pct > 0;
+    return `<span class="delta ${up === higherIsBad ? 'bad' : 'good'}">${up ? '▲' : '▼'} ${Math.abs(pct).toFixed(0)}%${vs}</span>`;
+}
+
+function barHtml(fraction, cls = '') {
+    return `<span class="bar ${cls}"><i style="width:${Math.max(0, Math.min(fraction, 1)) * 100}%"></i></span>`;
+}
+
+function emptyHtml(text) {
+    return `<p class="empty">${escapeHtml(text)}</p>`;
+}
+
+// Línea compacta de un movimiento (desgloses y "gastos más grandes"); se pulsa para editarlo
+function miniTxHtml(t, { showCategory = false } = {}) {
+    const meta = [showCategory && t.description ? t.category : '', formatTxDate(t), t.account].filter(Boolean).join(' · ');
+    return `<div class="mini-tx" data-action="editTransaction" data-id="${t.id}" role="button" tabindex="0">
+        <span class="mini-desc">${escapeHtml(t.description || t.category)}</span>
+        <span class="mini-meta">${escapeHtml(meta)}</span>
+        <span class="mini-amount">${formatCurrency(t.amount)}</span>
+    </div>`;
 }
 
 // ============================================
-// CÁLCULOS FINANCIEROS
+// CÁLCULOS
 // ============================================
 
-function getTotalInvested() { return sumAmounts(txWhere(isInvestment)); }
-function getEmergencyFundTotal() { return sumAmounts(txWhere(t => t.type === 'expense' && t.category === 'Colchón')); }
-function getInvestmentByCategory() { return sumBy(txWhere(isInvestment), t => t.category); }
+// Resumen de los movimientos que cumplen el filtro, en una sola pasada
+function summarize(filter = () => true) {
+    let income = 0, expenses = 0, invested = 0, adjustments = 0, count = 0;
+    for (const t of data.transactions) {
+        if (!filter(t)) continue;
+        const kind = txKind(t);
+        if (kind === 'income') income += t.amount;
+        else if (kind === 'expense') { expenses += t.amount; count++; }
+        else if (kind === 'investment') invested += t.amount;
+        else adjustments += t.amount;
+    }
+    const saved = income - expenses;
+    return { income, expenses, invested, adjustments, count, saved, savingsRate: income > 0 ? (saved / income) * 100 : null };
+}
 
-// PATRIMONIO = Ingresos - Gastos (las inversiones NO restan, los ajustes SÍ restan)
+// Patrimonio = ingresos − gastos − ajustes (lo invertido sigue siendo tuyo). Disponible = patrimonio − invertido
 function getPatrimony() {
-    return sumAmounts(txWhere(isIncome)) - sumAmounts(txWhere(isNonInvestmentExpense));
+    const s = summarize();
+    const total = s.income - s.expenses - s.adjustments;
+    return { total, invested: s.invested, available: total - s.invested };
 }
 
-function getAvailable() { return getPatrimony() - getTotalInvested(); }
-
-function getMonthSummary(month) {
-    const income = sumAmounts(txWhere(isIncome, inMonth(month)));
-    const expenses = sumAmounts(txWhere(isRealExpense, inMonth(month)));
-    return { income, expenses, savingsRate: income > 0 ? ((income - expenses) / income) * 100 : null };
+// Periodo (mes o año) con su periodo anterior para comparar.
+// Si el periodo es el actual, el anterior se corta en el mismo día: comparar medio mes con un mes entero engaña.
+function getPeriod(mode, month, year) {
+    const now = new Date(), today = now.getDate(), thisMonth = getCurrentMonth();
+    if (mode === 'year') {
+        const isCurrent = year === now.getFullYear();
+        const monthNum = thisMonth.slice(5);
+        const untilToday = t => { const m = t.month.slice(5); return m < monthNum || (m === monthNum && (txDay(t) || 1) <= today); };
+        const prevYear = inYear(year - 1);
+        const daysTotal = (new Date(year, 11, 31) - new Date(year, 0, 0)) / 86400000;
+        return {
+            mode, isCurrent, label: String(year), filter: inYear(year),
+            prevFilter: isCurrent ? t => prevYear(t) && untilToday(t) : prevYear,
+            prevLabel: isCurrent ? `${year - 1} a estas alturas` : String(year - 1),
+            daysTotal, daysElapsed: isCurrent ? Math.ceil((now - new Date(year, 0, 0)) / 86400000) : year > now.getFullYear() ? 0 : daysTotal
+        };
+    }
+    const isCurrent = month === thisMonth;
+    const prev = shiftMonth(month, -1);
+    const daysTotal = daysInMonth(month);
+    const partial = isCurrent && today < daysTotal;
+    return {
+        mode, isCurrent, month, prevMonth: prev, label: capitalize(formatMonth(month)), filter: inMonth(month),
+        prevFilter: partial ? t => t.month === prev && (txDay(t) || 1) <= today : inMonth(prev),
+        prevLabel: partial ? `${shortMonthName(prev)} a día ${today}` : monthName(prev),
+        daysTotal, daysElapsed: isCurrent ? today : month > thisMonth ? 0 : daysTotal
+    };
 }
 
-function getTotalSavingsRate() {
-    const income = sumAmounts(txWhere(isIncome));
-    const expenses = sumAmounts(txWhere(isRealExpense));
-    return income > 0 ? ((income - expenses) / income) * 100 : null;
+// Gastos reales por categoría, de mayor a menor, comparados con el periodo anterior
+function categoryRanking(filter, prevFilter) {
+    const groups = {};
+    txWhere(isRealExpense, filter).forEach(t => (groups[t.category] ||= []).push(t));
+    const prev = prevFilter ? sumBy(txWhere(isRealExpense, prevFilter), t => t.category) : {};
+    return Object.entries(groups)
+        .map(([category, txs]) => ({ category, txs, total: sumAmounts(txs), prev: prev[category] || 0 }))
+        .sort((a, b) => b.total - a.total);
 }
 
-// Valor actual de una inversión: el que apuntó el usuario, o lo aportado si no hay
-function getInvestmentStatus(category, contributed) {
-    const saved = data.investmentValues[category];
-    if (!saved) return { value: contributed, hasValue: false, stale: false };
-    const stale = data.transactions.some(t => isInvestment(t) && t.category === category && String(t.date || '') > saved.updated);
-    return { value: saved.value, hasValue: true, stale, updated: saved.updated };
+// ============================================
+// DATOS (guardar / cargar)
+// ============================================
+
+function loadData() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    let stored = null;
+    try { stored = JSON.parse(raw); } catch (err) { console.error('Datos corruptos', err); }
+    if (!stored || typeof stored !== 'object') {
+        // Se guarda una copia para poder recuperarlos a mano en vez de sobrescribirlos
+        try { localStorage.setItem(CORRUPT_KEY, raw); } catch { /* sin espacio */ }
+        pendingStartupMessage = 'No se pudieron leer tus datos guardados. Carga tu último backup desde Ajustes.';
+        return;
+    }
+    const { normalized, orphans, duplicates } = normalizeData(stored);
+    data = normalized;
+    const messages = [];
+    if (orphans.length) messages.push(`Categorías sin grupo movidas a "${data.categoryGroups.ocio.name}": ${orphans.join(', ')}.`);
+    if (duplicates.length) messages.push(`Categorías que estaban en dos grupos, arregladas: ${duplicates.join(', ')}.`);
+    if (messages.length) {
+        saveData();
+        pendingStartupMessage = messages.join(' ') + ' Puedes cambiarlas de grupo en Ajustes.';
+    }
 }
+
+// Completa campos que falten (datos antiguos o importados) y arregla categorías sueltas
+function normalizeData(raw) {
+    const d = Object.assign(createDefaultData(), raw);
+    if (!d.categoryGroups || typeof d.categoryGroups !== 'object') d.categoryGroups = {};
+    for (const [key, group] of Object.entries(DEFAULT_GROUPS)) {
+        const g = d.categoryGroups[key];
+        if (!g || typeof g !== 'object') { d.categoryGroups[key] = structuredCloneSafe(group); continue; }
+        if (!Array.isArray(g.categories)) g.categories = [];
+        if (!g.name) g.name = group.name;
+        g.percent = Number(g.percent) || 0;
+    }
+    const validList = (list, fallback) => Array.isArray(list) && list.length ? [...new Set(list.map(String))] : [...fallback];
+    d.accounts = validList(d.accounts, DEFAULT_ACCOUNTS);
+    d.incomeCategories = validList(d.incomeCategories, DEFAULT_INCOME_CATEGORIES);
+    if (!Array.isArray(d.recurring)) d.recurring = [];
+
+    d.transactions = (Array.isArray(d.transactions) ? d.transactions : [])
+        .filter(t => t && /^\d{4}-\d{2}$/.test(t.month) && (t.type === 'income' || t.type === 'expense'));
+    const ids = new Set();
+    d.transactions.forEach(t => {
+        t.amount = Math.abs(Number(t.amount)) || 0;
+        t.category = String(t.category || 'Otros');
+        t.account = String(t.account || d.accounts[0]);
+        // Sin id o con id repetido no se podría editar el movimiento correcto
+        if (!Number.isFinite(t.id) || ids.has(t.id)) t.id = newId();
+        ids.add(t.id);
+    });
+
+    // Una categoría solo puede estar en un grupo: si sale repetida se queda en el primero
+    const seen = new Set(), duplicates = new Set();
+    Object.values(d.categoryGroups).forEach(g => {
+        g.categories = g.categories.filter(c => {
+            if (seen.has(c)) { duplicates.add(c); return false; }
+            seen.add(c);
+            return true;
+        });
+    });
+
+    // Gastos cuya categoría no está en ningún grupo → a Ocio, para que cuenten
+    const orphans = [...new Set(d.transactions.filter(t => t.type === 'expense' && !seen.has(t.category)).map(t => t.category))];
+    d.categoryGroups.ocio.categories.push(...orphans);
+
+    return { normalized: d, orphans, duplicates: [...duplicates] };
+}
+
+function saveData() {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        return true;
+    } catch (err) {
+        console.error(err);
+        showNotification('No se pudo guardar (almacenamiento lleno o bloqueado). Descarga un backup.', 'error', { duration: 8000 });
+        return false;
+    }
+}
+
+function newId() {
+    let id = Date.now();
+    if (id <= lastId) id = lastId + 1;
+    lastId = id;
+    return id;
+}
+
+// ============================================
+// PIN
+// ============================================
+
+const isPinScreenActive = () => $('pinScreen').classList.contains('active');
+
+function pinKey(key) {
+    $('pinError').classList.remove('show');
+    if (key === 'back') currentPin = currentPin.slice(0, -1);
+    else if (currentPin.length < 6) currentPin += key;
+    updatePinDots();
+    if (currentPin.length === 6) setTimeout(checkPin, 150);
+}
+
+function updatePinDots() {
+    document.querySelectorAll('.pin-dot').forEach((dot, i) => dot.classList.toggle('filled', i < currentPin.length));
+}
+
+function checkPin() {
+    if (currentPin.length < 6) return;
+    if (currentPin === PIN_CODE) { currentPin = ''; unlockApp(); return; }
+    $('pinError').classList.add('show');
+    navigator.vibrate?.(120);
+    currentPin = '';
+    updatePinDots();
+}
+
+function unlockApp() {
+    $('pinScreen').classList.remove('active');
+    $('appContainer').classList.add('unlocked');
+    refreshAll();
+    if (pendingStartupMessage) {
+        showNotification(pendingStartupMessage, 'info', { duration: 8000 });
+        pendingStartupMessage = null;
+    }
+}
+
+// ============================================
+// INICIALIZACIÓN Y EVENTOS
+// ============================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadData();
+    statsState.month = getCurrentMonth();
+    statsState.year = getCurrentYear();
+    updateMonthFilter(true);
+
+    $('txSearch').addEventListener('input', resetListAndRender);
+    $('txMonth').addEventListener('change', () => { resetListAndRender(); renderHomeSide(); });
+    $('txCategoryFilter').addEventListener('change', resetListAndRender);
+    $('wizDateOther').addEventListener('change', e => { if (wiz && e.target.value) { wiz.date = e.target.value; renderWizDetails(); } });
+    $('importFile').addEventListener('change', importData);
+
+    registerServiceWorker();
+});
+
+function registerServiceWorker() {
+    // Solo funciona servido por http(s), no abriendo el archivo directamente (file://)
+    if (!('serviceWorker' in navigator) || !location.protocol.startsWith('http')) return;
+    navigator.serviceWorker.register('service-worker.js').catch(err => console.warn('Service worker no registrado:', err));
+}
+
+// Al volver a la app (o cambiar de día con ella abierta) se repinta con la fecha de hoy
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && !isPinScreenActive() && !modalStack.length) refreshAll();
+});
+
+// Cambios hechos en otra pestaña
+window.addEventListener('storage', e => {
+    if (e.key !== STORAGE_KEY || !e.newValue) return;
+    loadData();
+    if (!isPinScreenActive()) refreshAll();
+});
+
+// Móvil ↔ escritorio: algunas gráficas enseñan más o menos datos
+DESKTOP.addEventListener('change', () => { if (!isPinScreenActive()) renderSection(currentSection); });
+
+const ACTIONS = {
+    pin: d => pinKey(d.value),
+    nav: d => showSection(d.value),
+    addTx: d => openAddTransaction(d.value),
+    closeModal: d => closeModal(d.value),
+    details: d => showDetailsPopup(d.value),
+    txType: d => { listState.type = d.value; resetListAndRender(); },
+    txMore: () => { listState.limit += PAGE_SIZE; renderTransactions(); },
+    editTransaction: d => openEditTransaction(Number(d.id)),
+    deleteEditedTransaction: () => deleteEditedTransaction(),
+    duplicateTransaction: () => duplicateTransaction(),
+    // Estadísticas
+    statsMode: d => { statsState.mode = d.value; renderStats(); },
+    statsShift: d => shiftStatsPeriod(Number(d.value)),
+    statsToday: () => { statsState.month = getCurrentMonth(); statsState.year = getCurrentYear(); renderStats(); },
+    statsPickMonth: d => { statsState.mode = 'month'; statsState.month = d.value; renderStats(); },
+    editBudget: () => openBudgetModal(),
+    // Ajustes
+    newCategory: () => openCategoryModal(),
+    editCategory: d => openCategoryModal(d.value),
+    removeCategory: d => removeExpenseCategory(d.value),
+    removeAccount: d => removeListItem('accounts', d.value),
+    removeIncomeCategory: d => removeListItem('incomeCategories', d.value),
+    exportData: () => exportData(),
+    exportCsv: () => exportCsv(),
+    pickImport: () => $('importFile').click(),
+    resetData: () => resetData(),
+    dismissBackup: () => { backupBannerDismissed = true; renderBanners(); },
+    // Recurrentes
+    openRecurring: () => openRecurringModal(),
+    addRecurring: d => addRecurring(Number(d.id)),
+    addAllRecurring: () => addAllRecurring(),
+    skipRecurring: d => skipRecurring(Number(d.id)),
+    editRecurringAmount: d => editRecurringAmount(Number(d.id)),
+    deleteRecurring: d => deleteRecurring(Number(d.id)),
+    // Asistente
+    wizBack: () => wizardBack(),
+    wizType: d => setWizType(d.value),
+    wizKey: d => wizKey(d.value),
+    wizAmountNext: () => wizAmountNext(),
+    wizGoto: d => wizGoTo(d.value),
+    wizCategory: d => { wiz.category = d.value; wizNext(); },
+    wizAccount: d => { wiz.account = d.value; wizNext(); },
+    wizDate: d => {
+        wiz.showOtherDate = d.value === 'other';
+        if (d.value === 'today') wiz.date = todayISO();
+        if (d.value === 'yesterday') wiz.date = yesterdayISO();
+        renderWizDetails();
+        if (d.value === 'other') { try { $('wizDateOther').showPicker(); } catch { $('wizDateOther').focus(); } }
+    },
+    wizDesc: d => { $('wizDescription').value = d.value; }
+};
+
+const FORMS = {
+    saveTransaction: () => saveTransaction(),
+    saveEditedTransaction: () => saveEditedTransaction(),
+    saveEditValue: () => saveEditValue(),
+    saveCategory: () => saveCategory(),
+    confirmReassignCategory: () => confirmReassignCategory(),
+    saveBudget: () => saveBudget(),
+    addAccount: () => addListItem('accounts', 'newAccountName'),
+    addIncomeCategory: () => addListItem('incomeCategories', 'newIncomeCategoryName')
+};
+
+// Un solo listener para todos los botones (data-action) y formularios (data-submit)
+let pointerDownTarget = null;
+document.addEventListener('pointerdown', e => { pointerDownTarget = e.target; });
+
+document.addEventListener('click', e => {
+    const el = e.target.closest('[data-action]');
+    if (el && ACTIONS[el.dataset.action]) {
+        e.preventDefault();
+        ACTIONS[el.dataset.action](el.dataset);
+        return;
+    }
+    // Clic en el fondo oscuro cierra la ventana (pero no si se arrastró desde dentro, p. ej. seleccionando texto)
+    if (e.target.classList.contains('modal') && pointerDownTarget === e.target) closeModal(e.target.id);
+});
+
+document.addEventListener('submit', e => {
+    const handler = FORMS[e.target.dataset.submit];
+    if (!handler) return;
+    e.preventDefault();
+    handler();
+});
+
+document.addEventListener('keydown', e => {
+    if (isPinScreenActive()) {
+        if (/^[0-9]$/.test(e.key)) pinKey(e.key);
+        else if (e.key === 'Backspace') pinKey('back');
+        return;
+    }
+    if (e.key === 'Escape') {
+        const top = modalStack[modalStack.length - 1];
+        if (top) closeModal(top);
+        return;
+    }
+    // Enter/espacio sobre filas pulsables
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('[role="button"][data-action]')) {
+        e.preventDefault();
+        e.target.click();
+        return;
+    }
+    // Teclado físico en el paso del importe
+    if (wiz && modalStack[modalStack.length - 1] === 'addTransactionModal' && wizSteps()[wiz.step] === 'amount') {
+        if (/^[0-9]$/.test(e.key)) wizKey(e.key);
+        else if (e.key === ',' || e.key === '.') wizKey(',');
+        else if (e.key === 'Backspace') wizKey('back');
+        else if (e.key === 'Enter') wizAmountNext();
+        else return;
+        e.preventDefault();
+        return;
+    }
+    // Atajos (solo si no se está escribiendo ni hay ventanas abiertas)
+    if (modalStack.length || e.ctrlKey || e.metaKey || e.altKey || e.target.matches?.('input, select, textarea')) return;
+    const key = e.key.toLowerCase();
+    if (key === 'g') openAddTransaction('expense');
+    else if (key === 'i') openAddTransaction('income');
+    else if (key === '/') { showSection('inicio'); $('txSearch').focus(); }
+    else if (key === '1') showSection('inicio');
+    else if (key === '2') showSection('estadisticas');
+    else if (key === '3') showSection('ajustes');
+    else return;
+    e.preventDefault();
+});
+
+// Gráficas: al pasar el ratón (o enfocar) un elemento con data-caption, su texto aparece bajo la gráfica
+function showCaption(e) {
+    const el = e.target.closest?.('[data-caption]');
+    const caption = el?.closest('.chart')?.querySelector('.chart-caption');
+    if (caption) caption.textContent = el.dataset.caption;
+}
+function restoreCaption(e) {
+    const el = e.target.closest?.('[data-caption]');
+    const caption = el?.closest('.chart')?.querySelector('.chart-caption');
+    if (caption) caption.textContent = caption.dataset.default || '';
+}
+document.addEventListener('pointerover', showCaption);
+document.addEventListener('pointerout', restoreCaption);
+document.addEventListener('focusin', showCaption);
+document.addEventListener('focusout', restoreCaption);
 
 // ============================================
 // NAVEGACIÓN Y REFRESCO
@@ -440,36 +606,21 @@ function showSection(sectionId) {
     document.querySelectorAll('.section').forEach(s => s.classList.toggle('active', s.id === sectionId));
     document.querySelectorAll('[data-nav]').forEach(b => b.classList.toggle('active', b.dataset.nav === sectionId));
     renderSection(sectionId);
+    window.scrollTo(0, 0);
 }
 
 function renderSection(sectionId) {
-    if (sectionId === 'dashboard') updateDashboard();
-    if (sectionId === 'inversiones') renderInvestmentPanel();
-    if (sectionId === 'estadisticas') updateStats();
-    if (sectionId === 'datos') renderSettings();
+    if (sectionId === 'inicio') renderHome();
+    else if (sectionId === 'estadisticas') renderStats();
+    else if (sectionId === 'ajustes') renderSettings();
 }
 
-// Redibuja todo lo visible tras cualquier cambio en los datos
+// Redibuja lo visible tras cualquier cambio en los datos
 function refreshAll() {
-    updateMonthFilters();
+    updateMonthFilter();
     updateCategoryFilter();
-    updateHeaderStats();
     renderBanners();
     renderSection(currentSection);
-}
-
-// ============================================
-// CONFIGURACIÓN INICIAL
-// ============================================
-
-function completeSetup() {
-    const goal = parseAmount($('setupEmergencyGoal').value);
-    if (!(goal > 0)) { showNotification('Ingresa una meta válida', 'warning'); return; }
-    data.emergencyGoal = goal;
-    data.setupComplete = true;
-    saveData();
-    renderInvestmentPanel();
-    showNotification('Configuración completada', 'success');
 }
 
 // ============================================
@@ -483,19 +634,18 @@ function getPendingRecurring() {
 
 function renderBanners() {
     let html = '';
-    const pending = getPendingRecurring();
-    if (pending.length) {
+    const pending = getPendingRecurring().length;
+    if (pending) {
         html += `<div class="banner">
-            <span>🔁 ${pending.length} movimiento${pending.length > 1 ? 's' : ''} recurrente${pending.length > 1 ? 's' : ''} pendiente${pending.length > 1 ? 's' : ''} en ${escapeHtml(formatMonth(getCurrentMonth()))}</span>
+            <span>🔁 ${plural(pending, 'movimiento recurrente pendiente', 'movimientos recurrentes pendientes')} en ${escapeHtml(monthName(getCurrentMonth()))}</span>
             <button class="btn-primary btn-small" data-action="openRecurring">Revisar</button>
         </div>`;
     }
     const needsBackup = data.transactions.length > 0 && (!data.lastBackup || daysSince(data.lastBackup) >= BACKUP_REMINDER_DAYS);
     if (needsBackup && !backupBannerDismissed) {
-        const text = data.lastBackup ? `Tu último backup fue hace ${daysSince(data.lastBackup)} días` : 'Aún no has hecho ningún backup';
         html += `<div class="banner warning">
-            <span>💾 ${text}</span>
-            <span class="banner-actions">
+            <span>💾 ${data.lastBackup ? `Tu último backup fue hace ${daysSince(data.lastBackup)} días` : 'Aún no has hecho ningún backup'}</span>
+            <span class="button-row">
                 <button class="btn-primary btn-small" data-action="exportData">Descargar</button>
                 <button class="btn-secondary btn-small" data-action="dismissBackup">Más tarde</button>
             </span>
@@ -505,106 +655,162 @@ function renderBanners() {
 }
 
 // ============================================
-// DASHBOARD
+// INICIO
 // ============================================
 
-function updateDashboard() {
-    updateTransactionLists();
+function kpiHtml({ label, value, sub = '', tone = '', cls = '', action = '', actionValue = '' }) {
+    const tag = action ? 'button' : 'div';
+    return `<${tag} class="kpi ${cls}"${action ? ` data-action="${action}" data-value="${actionValue}"` : ''}>
+        <span class="kpi-label">${label}</span>
+        <span class="kpi-value ${tone}">${value}</span>
+        <span class="kpi-sub">${sub}</span>
+    </${tag}>`;
 }
 
-function updateHeaderStats() {
-    const month = getCurrentMonth();
-    const prevMonth = shiftMonth(month, -1);
-    const prevLabel = monthName(prevMonth);
-    const cur = getMonthSummary(month);
-    const prev = getMonthSummary(prevMonth);
-    const patrimony = formatCurrency(getPatrimony());
-    const incomeDelta = deltaBadge(cur.income, prev.income, prevLabel, false);
-    const expensesDelta = deltaBadge(cur.expenses, prev.expenses, prevLabel, true);
+function renderHome() {
+    const period = getPeriod('month', getCurrentMonth());
+    const cur = summarize(period.filter), prev = summarize(period.prevFilter);
+    const patrimony = getPatrimony();
+    const perDay = cur.expenses / Math.max(period.daysElapsed, 1);
 
-    setText('monthlyIncome', formatCurrency(cur.income));
-    setText('monthlyExpenses', formatCurrency(cur.expenses));
-    setText('savingsRate', formatPercent(cur.savingsRate));
-    setText('savingsRateTotal', 'Histórico: ' + formatPercent(getTotalSavingsRate()));
-    setText('totalPatrimony', patrimony);
-    setHtml('incomeDelta', incomeDelta);
-    setHtml('expensesDelta', expensesDelta);
+    setText('homeTitle', period.label);
+    setHtml('homeKpis', [
+        kpiHtml({
+            cls: 'kpi-main', label: 'Gastado este mes', value: formatCurrency(cur.expenses), action: 'nav', actionValue: 'estadisticas',
+            sub: deltaBadge(cur.expenses, prev.expenses, period.prevLabel) + `<span class="kpi-extra">${formatRound(perDay)}/día de media</span>`
+        }),
+        kpiHtml({
+            label: 'Ingresos', value: formatCurrency(cur.income), tone: 'pos', action: 'details', actionValue: 'income',
+            sub: deltaBadge(cur.income, prev.income, period.prevLabel, false)
+        }),
+        kpiHtml({
+            label: 'Ahorro', value: formatCurrency(cur.saved), tone: cur.saved < 0 ? 'neg' : '', action: 'details', actionValue: 'savings',
+            sub: cur.savingsRate === null ? 'Sin ingresos este mes' : `${formatPercent(cur.savingsRate)} de tus ingresos`
+        }),
+        kpiHtml({
+            label: 'Patrimonio', value: formatRound(patrimony.total), action: 'details', actionValue: 'patrimony',
+            sub: `Disponible ${formatRound(patrimony.available)}`
+        })
+    ].join(''));
 
-    setText('mobileIncome', '+' + formatCurrency(cur.income));
-    setText('mobileExpenses', '-' + formatCurrency(cur.expenses));
-    setText('mobilePatrimony', patrimony);
-    setText('mobileSavings', formatPercent(cur.savingsRate, 0));
-    setHtml('mobileIncomeDelta', incomeDelta);
-    setHtml('mobileExpensesDelta', expensesDelta);
+    renderTransactions();
+    renderHomeSide();
 }
+
+// Panel lateral (solo ordenador): categorías y reparto del mes elegido en la lista
+function renderHomeSide() {
+    const month = $('txMonth').value;
+    const filter = month ? inMonth(month) : () => true;
+    const label = month ? formatMonth(month) : 'todos los meses';
+    const ranking = categoryRanking(filter);
+    const total = ranking.reduce((s, r) => s + r.total, 0);
+    setText('sideCatTitle', `Gastos · ${label}`);
+    setHtml('sideCategories', ranking.length ? ranking.slice(0, 7).map(r => `
+        <div class="side-rank">
+            <span class="rank-name">${escapeHtml(r.category)}</span>
+            <span class="rank-amount">${formatCurrency(r.total)}</span>
+            <span class="rank-pct">${formatPercent(r.total / total * 100)}</span>
+            ${barHtml(r.total / ranking[0].total)}
+        </div>`).join('') : emptyHtml('Sin gastos'));
+    setText('sideBudgetTitle', `Reparto · ${label}`);
+    setHtml('sideBudget', budgetHtml(filter));
+}
+
+function resetListAndRender() {
+    listState.limit = PAGE_SIZE;
+    renderTransactions();
+}
+
+const TYPE_CHIPS = [['all', 'Todo'], ['expense', 'Gastos'], ['income', 'Ingresos'], ['investment', 'Inversión']];
+const KIND_BADGES = { investment: 'Inversión', adjustment: 'Ajuste' };
 
 function matchesSearch(t, query) {
-    const haystack = normalizeText([t.category, t.description, t.account, t.amount.toFixed(2), String(t.amount).replace('.', ',')].join(' '));
-    return haystack.includes(query);
+    return normalizeText([t.category, t.description, t.account, t.amount.toFixed(2).replace('.', ','), t.amount].join(' ')).includes(query);
 }
 
-function updateTransactionLists() {
+function renderTransactions() {
+    const month = $('txMonth').value;
     const query = normalizeText($('txSearch').value.trim());
     const [filterType, filterCat] = ($('txCategoryFilter').value || ':').split(/:(.*)/);
+    const { type } = listState;
 
-    const renderList = ({ predicate, type, monthSelectId, containerId, totalId, sign, cls, emptyText }) => {
-        const month = $(monthSelectId).value;
-        let list = txWhere(predicate);
-        if (month) list = list.filter(t => t.month === month);
-        if (filterCat) list = filterType === type ? list.filter(t => t.category === filterCat) : [];
-        if (query) list = list.filter(t => matchesSearch(t, query));
-        list.sort(compareTransactions);
+    const list = data.transactions.filter(t => {
+        if (month && t.month !== month) return false;
+        const kind = txKind(t);
+        if (type === 'expense' ? kind !== 'expense' && kind !== 'adjustment' : type !== 'all' && kind !== type) return false;
+        if (filterCat && (t.type !== filterType || t.category !== filterCat)) return false;
+        return !query || matchesSearch(t, query);
+    }).sort(compareTransactions);
 
-        setText(totalId, formatCurrency(sumAmounts(list)));
-        setHtml(containerId, list.length ? list.map(t => transactionItemHtml(t, sign, cls)).join('') : `<p class="empty-message">${emptyText}</p>`);
-    };
+    setHtml('txTypeChips', TYPE_CHIPS.map(([value, label]) =>
+        `<button class="chip${value === type ? ' selected' : ''}" data-action="txType" data-value="${value}">${label}</button>`).join(''));
 
-    renderList({ predicate: isRealExpense, type: 'expense', monthSelectId: 'filterExpensesMonth', containerId: 'expensesList', totalId: 'expensesTotal', sign: '-', cls: 'negative', emptyText: 'No hay gastos' });
-    renderList({ predicate: isIncome, type: 'income', monthSelectId: 'filterIncomesMonth', containerId: 'incomesList', totalId: 'incomesTotal', sign: '+', cls: 'positive', emptyText: 'No hay ingresos' });
+    const ids = new Set(list.map(t => t.id));
+    const totals = summarize(t => ids.has(t.id));
+    setHtml('txTotals', [
+        `<span>${plural(list.length, 'movimiento', 'movimientos')}</span>`,
+        totals.income ? `<span class="pos">+${formatCurrency(totals.income)}</span>` : '',
+        totals.expenses ? `<span class="neg">−${formatCurrency(totals.expenses)}</span>` : '',
+        totals.invested ? `<span>Invertido ${formatCurrency(totals.invested)}</span>` : ''
+    ].join(''));
+
+    if (!list.length) {
+        setHtml('txList', emptyHtml(data.transactions.length ? 'No hay movimientos con estos filtros' : 'Aún no hay movimientos. Añade el primero con el botón +'));
+        return;
+    }
+
+    // Agrupados por día, con el gasto de cada día en la cabecera
+    let html = '', lastGroup = null;
+    const dayTotals = {};
+    list.forEach(t => { if (txKind(t) === 'expense') { const k = `${t.month}-${txDay(t)}`; dayTotals[k] = (dayTotals[k] || 0) + t.amount; } });
+    list.slice(0, listState.limit).forEach(t => {
+        const group = `${t.month}-${txDay(t)}`;
+        if (group !== lastGroup) {
+            lastGroup = group;
+            html += `<div class="tx-day"><span>${escapeHtml(formatTxDate(t, { weekday: true }))}</span><span>${dayTotals[group] ? '−' + formatCurrency(dayTotals[group]) : ''}</span></div>`;
+        }
+        html += transactionRowHtml(t);
+    });
+    if (list.length > listState.limit) html += `<button class="btn-secondary full-width tx-more" data-action="txMore">Ver más (${list.length - listState.limit} restantes)</button>`;
+    setHtml('txList', html);
 }
 
-function transactionItemHtml(t, sign, cls) {
-    return `<div class="transaction-item" data-action="editTransaction" data-id="${t.id}">
-        <div class="transaction-row">
-            <span class="transaction-category">${escapeHtml(t.category)}</span>
-            <span class="transaction-amount ${cls}">${sign}${formatCurrency(t.amount)}</span>
-        </div>
-        <div class="transaction-meta"><span>${escapeHtml(t.account || 'Efectivo')}</span><span>${escapeHtml(formatTxDate(t))}</span></div>
-        ${t.description ? `<div class="transaction-description">${escapeHtml(t.description)}</div>` : ''}
+function transactionRowHtml(t) {
+    const kind = txKind(t);
+    const sign = kind === 'income' ? '+' : '−';
+    return `<div class="tx kind-${kind}" data-action="editTransaction" data-id="${t.id}" role="button" tabindex="0">
+        <span class="tx-date">${escapeHtml(formatTxDate(t))}</span>
+        <span class="tx-cat">${escapeHtml(t.category)}${KIND_BADGES[kind] ? `<em class="badge">${KIND_BADGES[kind]}</em>` : ''}</span>
+        <span class="tx-note">${escapeHtml(t.description || '')}</span>
+        <span class="tx-account">${escapeHtml(t.account)}</span>
+        <span class="tx-amount">${sign}${formatCurrency(t.amount)}</span>
     </div>`;
 }
 
-// Rellena los filtros de mes. Mantiene la selección actual; al arrancar elige el mes en curso
-function updateMonthFilters(selectCurrent = false) {
-    const currentMonth = getCurrentMonth();
-    [['filterExpensesMonth', isRealExpense], ['filterIncomesMonth', isIncome]].forEach(([id, predicate]) => {
-        const select = $(id);
-        const months = [...new Set(txWhere(predicate).map(t => t.month))].sort().reverse();
-        const previous = select.value;
-        select.innerHTML = '<option value="">Todos los meses</option>' + months.map(m => `<option value="${m}">${escapeHtml(formatMonth(m))}</option>`).join('');
-        if (selectCurrent) select.value = months.includes(currentMonth) ? currentMonth : '';
-        else select.value = months.includes(previous) ? previous : '';
-    });
+// Mantiene el mes elegido; al arrancar elige el mes en curso
+function updateMonthFilter(selectCurrent = false) {
+    const select = $('txMonth');
+    const current = getCurrentMonth();
+    const months = [...new Set([current, ...data.transactions.map(t => t.month)])].sort().reverse();
+    const previous = selectCurrent ? current : select.value;
+    select.innerHTML = '<option value="">Todos los meses</option>'
+        + months.map(m => `<option value="${m}">${escapeHtml(capitalize(formatMonth(m)))}</option>`).join('');
+    select.value = months.includes(previous) ? previous : '';
 }
 
 function updateCategoryFilter() {
     const select = $('txCategoryFilter');
     const previous = select.value;
     const option = (type, cat) => `<option value="${type}:${escapeHtml(cat)}">${escapeHtml(cat)}</option>`;
-    const expenseCats = Object.entries(data.categoryGroups).filter(([key]) => key !== 'inversion').flatMap(([, g]) => g.categories);
     select.innerHTML = '<option value="">Todas las categorías</option>'
-        + `<optgroup label="Gastos">${expenseCats.map(c => option('expense', c)).join('')}</optgroup>`
+        + Object.values(data.categoryGroups).map(g => `<optgroup label="${escapeHtml(g.name)}">${g.categories.map(c => option('expense', c)).join('')}</optgroup>`).join('')
         + `<optgroup label="Ingresos">${data.incomeCategories.map(c => option('income', c)).join('')}</optgroup>`;
     select.value = [...select.options].some(o => o.value === previous) ? previous : '';
 }
 
 // ============================================
-// TRANSACCIONES
+// NUEVO MOVIMIENTO (asistente: importe → categoría → cuenta → detalles)
 // ============================================
-
-// --- Asistente paso a paso: importe → categoría → cuenta → detalles ---
-// Cada toque en categoría/cuenta pasa solo al siguiente paso.
-let wiz = null;
 
 function openAddTransaction(type) {
     wiz = {
@@ -612,17 +818,21 @@ function openAddTransaction(type) {
         account: data.accounts.includes(data.lastAccount) ? data.lastAccount : data.accounts[0],
         date: todayISO()
     };
-    setText('transactionModalTitle', type === 'income' ? 'Nuevo ingreso' : 'Nuevo gasto');
-    $('addTransactionModal').classList.toggle('is-income', type === 'income');
     $('wizDescription').value = '';
     $('wizRecurring').checked = false;
     renderWizard();
     openModal('addTransactionModal');
 }
 
-// Si solo hay una cuenta, el paso de cuenta se salta
-function wizSteps() {
-    return data.accounts.length > 1 ? ['amount', 'category', 'account', 'details'] : ['amount', 'category', 'details'];
+// Si solo hay una cuenta, ese paso se salta
+const wizSteps = () => data.accounts.length > 1 ? ['amount', 'category', 'account', 'details'] : ['amount', 'category', 'details'];
+const parseWizAmount = () => parseAmount(wiz.amount.replace(/,$/, '')) || 0;
+
+function setWizType(type) {
+    if (wiz.type === type) return;
+    wiz.type = type;
+    wiz.category = null;
+    renderWizard();
 }
 
 function wizGoTo(stepName) {
@@ -639,13 +849,13 @@ function wizardBack() {
     if (wiz && wiz.step > 0) { wiz.step--; renderWizard(); }
 }
 
-function isWizardOpen() {
-    return !!wiz && $('addTransactionModal').classList.contains('active');
-}
-
 function renderWizard() {
     const steps = wizSteps();
     const current = steps[wiz.step];
+    const isIncomeType = wiz.type === 'income';
+    setText('transactionModalTitle', isIncomeType ? 'Nuevo ingreso' : 'Nuevo gasto');
+    $('addTransactionModal').classList.toggle('is-income', isIncomeType);
+    document.querySelectorAll('#wizType button').forEach(b => b.classList.toggle('selected', b.dataset.value === wiz.type));
     document.querySelectorAll('#addTransactionModal .wizard-step').forEach(el => el.classList.toggle('active', el.dataset.step === current));
     $('wizBack').style.visibility = wiz.step > 0 ? 'visible' : 'hidden';
     setHtml('wizDots', steps.map((_, i) => `<span class="${i < wiz.step ? 'done' : i === wiz.step ? 'current' : ''}"></span>`).join(''));
@@ -655,23 +865,18 @@ function renderWizard() {
     if (wiz.step > 0) chips.push(['amount', formatCurrency(parseWizAmount())]);
     if (wiz.step > steps.indexOf('category')) chips.push(['category', wiz.category]);
     if (steps.includes('account') && wiz.step > steps.indexOf('account')) chips.push(['account', wiz.account]);
-    setHtml('wizSummary', chips.map(([step, label]) => `<button type="button" class="summary-chip" data-action="wizGoto" data-value="${step}">${escapeHtml(label)}</button>`).join(''));
+    setHtml('wizSummary', chips.map(([step, label]) => `<button type="button" class="chip small" data-action="wizGoto" data-value="${step}">${escapeHtml(label)}</button>`).join(''));
 
     if (current === 'amount') renderWizAmount();
-    if (current === 'category') renderWizCategories();
-    if (current === 'account') renderWizAccounts();
-    if (current === 'details') renderWizDetails();
-}
-
-function parseWizAmount() {
-    return parseAmount(wiz.amount.replace(/,$/, '')) || 0;
+    else if (current === 'category') renderWizCategories();
+    else if (current === 'account') renderWizAccounts();
+    else renderWizDetails();
 }
 
 function renderWizAmount() {
     const [int, dec] = wiz.amount.split(',');
-    const intFormatted = Number(int || 0).toLocaleString('es-ES');
     const display = $('wizAmountDisplay');
-    display.textContent = intFormatted + (dec !== undefined ? ',' + dec : '') + '€';
+    display.textContent = intFormatter.format(Number(int || 0)) + (dec !== undefined ? ',' + dec : '') + ' €';
     display.classList.toggle('empty', !wiz.amount);
 }
 
@@ -692,56 +897,47 @@ function wizKey(key) {
 }
 
 function wizAmountNext() {
-    if (!(parseWizAmount() > 0)) {
-        const display = $('wizAmountDisplay');
-        display.classList.remove('shake');
-        void display.offsetWidth; // reinicia la animación
-        display.classList.add('shake');
-        return;
-    }
-    wizNext();
+    if (parseWizAmount() > 0) { wizNext(); return; }
+    const display = $('wizAmountDisplay');
+    display.classList.remove('shake');
+    void display.offsetWidth; // reinicia la animación
+    display.classList.add('shake');
 }
 
-// Las más usadas en los últimos 6 meses salen primero
+// Las categorías más usadas en los últimos 6 meses salen primero
 function categoryUsageCounts(type) {
     const since = shiftMonth(getCurrentMonth(), -6);
     const counts = {};
-    data.transactions.forEach(t => {
-        if (t.type === type && t.month >= since) counts[t.category] = (counts[t.category] || 0) + 1;
-    });
+    data.transactions.forEach(t => { if (t.type === type && t.month >= since) counts[t.category] = (counts[t.category] || 0) + 1; });
     return counts;
 }
 
+function choiceHtml(action, value, selected, small = '') {
+    return `<button type="button" class="choice${selected ? ' selected' : ''}" data-action="${action}" data-value="${escapeHtml(value)}">
+        <span>${escapeHtml(value)}</span>${small ? `<small>${escapeHtml(small)}</small>` : ''}
+    </button>`;
+}
+
+// Gastos normales primero (por uso); las de Inversión aparte, abajo, para no mezclarlas
 function renderWizCategories() {
     const counts = categoryUsageCounts(wiz.type);
-    const items = wiz.type === 'income'
-        ? data.incomeCategories.map(name => ({ name, group: '' }))
-        : Object.values(data.categoryGroups).flatMap(g => g.categories.map(name => ({ name, group: g.name })));
-    items.sort((a, b) => (counts[b.name] || 0) - (counts[a.name] || 0));
-    setHtml('wizCategoryChoices', items.map(i => `
-        <button type="button" class="choice${i.name === wiz.category ? ' selected' : ''}" data-action="wizCategory" data-value="${escapeHtml(i.name)}">
-            <span>${escapeHtml(i.name)}</span>${i.group ? `<small>${escapeHtml(i.group)}</small>` : ''}
-        </button>`).join(''));
+    const byUsage = list => [...list].sort((a, b) => (counts[b.name] || 0) - (counts[a.name] || 0));
+    const button = c => choiceHtml('wizCategory', c.name, c.name === wiz.category, c.group);
+
+    if (wiz.type === 'income') {
+        setHtml('wizCategoryChoices', byUsage(data.incomeCategories.map(name => ({ name }))).map(button).join(''));
+        return;
+    }
+    const { inversion, ...spendingGroups } = data.categoryGroups;
+    const spending = Object.values(spendingGroups).flatMap(g => g.categories.map(name => ({ name, group: g.name })));
+    setHtml('wizCategoryChoices', byUsage(spending).map(button).join('')
+        + (inversion.categories.length ? `<div class="choice-section">${escapeHtml(inversion.name)} · no cuenta como gasto</div>` + inversion.categories.map(name => button({ name })).join('') : ''));
 }
 
 function renderWizAccounts() {
-    const accounts = [wiz.account, ...data.accounts.filter(a => a !== wiz.account)];
-    setHtml('wizAccountChoices', accounts.map(a => `
-        <button type="button" class="choice${a === wiz.account ? ' selected' : ''}" data-action="wizAccount" data-value="${escapeHtml(a)}">
-            <span>${escapeHtml(a)}</span>${a === wiz.account ? '<small>Última usada</small>' : ''}
-        </button>`).join(''));
-}
-
-function yesterdayISO() {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    return `${monthKey(d)}-${pad(d.getDate())}`;
-}
-
-function wizSetDate(value) {
-    if (!value) return;
-    wiz.date = value;
-    renderWizDetails();
+    const last = data.lastAccount;
+    const accounts = data.accounts.includes(last) ? [last, ...data.accounts.filter(a => a !== last)] : data.accounts;
+    setHtml('wizAccountChoices', accounts.map(a => choiceHtml('wizAccount', a, a === wiz.account, a === last ? 'Última usada' : '')).join(''));
 }
 
 function renderWizDetails() {
@@ -755,11 +951,12 @@ function renderWizDetails() {
     other.style.display = isOther ? 'block' : 'none';
     other.value = wiz.date;
 
-    // Notas que ya usaste en esta categoría, para no reescribirlas
+    // Notas que ya usaste en esta categoría, para no reescribirlas.
+    // Las de ajuste no se sugieren: convertirían el gasto en un ajuste sin querer
     const counts = {};
     data.transactions.forEach(t => {
         const desc = (t.description || '').trim();
-        if (t.type === wiz.type && t.category === wiz.category && desc) counts[desc] = (counts[desc] || 0) + 1;
+        if (t.type === wiz.type && t.category === wiz.category && desc && !isAdjustment(t)) counts[desc] = (counts[desc] || 0) + 1;
     });
     const suggestions = Object.keys(counts).sort((a, b) => counts[b] - counts[a]).slice(0, 6);
     setHtml('wizDescSuggestions', suggestions.map(s => `<button type="button" class="chip small" data-action="wizDesc" data-value="${escapeHtml(s)}">${escapeHtml(s)}</button>`).join(''));
@@ -767,10 +964,29 @@ function renderWizDetails() {
     setText('wizSaveBtn', `Guardar ${formatCurrency(parseWizAmount())}`);
 }
 
+// Se asegura de que el movimiento recién guardado se vea en la lista
+function revealInList(tx) {
+    const select = $('txMonth');
+    if (select.value && select.value !== tx.month) select.value = tx.month;
+    listState.type = 'all';
+    $('txSearch').value = '';
+    $('txCategoryFilter').value = '';
+    listState.limit = PAGE_SIZE;
+}
+
+function undoable(message, undo) {
+    showNotification(message, 'success', {
+        actionLabel: 'Deshacer',
+        duration: UNDO_DURATION,
+        onAction: () => { undo(); saveData(); refreshAll(); showNotification('Deshecho', 'success'); }
+    });
+}
+
 function saveTransaction() {
     if (!wiz) return;
     const amount = parseWizAmount();
     if (!(amount > 0)) { wizGoTo('amount'); return; }
+    if (!wiz.category) { wizGoTo('category'); return; }
     if (!wiz.date) { showNotification('Elige una fecha', 'warning'); return; }
 
     const { type, category, account } = wiz;
@@ -787,46 +1003,49 @@ function saveTransaction() {
     saveData();
     closeModal('addTransactionModal');
     wiz = null;
+    updateMonthFilter();
+    revealInList(tx);
     refreshAll();
-    showNotification(`${type === 'income' ? 'Ingreso' : 'Gasto'} guardado: ${category} ${formatCurrency(amount)}`, 'success', {
-        actionLabel: 'Deshacer',
-        duration: UNDO_DURATION,
-        onAction: () => {
-            data.transactions = data.transactions.filter(t => t.id !== tx.id);
-            if (recurring) data.recurring = data.recurring.filter(r => r.id !== recurring.id);
-            saveData();
-            refreshAll();
-            showNotification('Deshecho', 'success');
-        }
+
+    const kind = txKind(tx);
+    const label = { income: 'Ingreso guardado', expense: 'Gasto guardado', investment: 'Inversión guardada (no cuenta como gasto)', adjustment: 'Ajuste de patrimonio guardado (no cuenta como gasto)' }[kind];
+    undoable(`${label}: ${category} ${formatCurrency(amount)}`, () => {
+        data.transactions = data.transactions.filter(t => t.id !== tx.id);
+        if (recurring) data.recurring = data.recurring.filter(r => r.id !== recurring.id);
     });
 }
+
+// ============================================
+// EDITAR / BORRAR / DUPLICAR
+// ============================================
+
+const editedTransaction = () => data.transactions.find(t => t.id === Number($('editTransactionId').value));
 
 function openEditTransaction(id) {
     const t = data.transactions.find(t => t.id === id);
     if (!t) return;
     $('editTransactionId').value = t.id;
-    $('editTransactionTitle').textContent = t.type === 'income' ? 'Editar Ingreso' : 'Editar Gasto';
-    $('editAmount').value = String(t.amount).replace('.', ',');
-    $('editDate').value = `${t.month}-${pad(t.day || 1)}`;
+    setText('editTransactionTitle', t.type === 'income' ? 'Editar ingreso' : 'Editar gasto');
+    $('editAmount').value = amountToInput(t.amount);
+    $('editDate').value = `${t.month}-${pad(txDay(t) || 1)}`;
     $('editCategory').innerHTML = categoryOptionsHtml(t.type, t.category);
-    $('editAccount').innerHTML = accountOptionsHtml(t.account || 'Efectivo');
+    $('editAccount').innerHTML = optionsHtml(withCurrent(data.accounts, t.account), t.account);
     $('editDescription').value = t.description || '';
     openModal('editTransactionModal');
 }
 
 function saveEditedTransaction() {
-    const t = data.transactions.find(t => t.id === Number($('editTransactionId').value));
+    const t = editedTransaction();
     if (!t) return;
     const amount = parseAmount($('editAmount').value);
     const dateValue = $('editDate').value;
-    if (!(amount > 0)) { showNotification('Introduce un monto mayor que 0', 'warning'); return; }
+    if (!(amount > 0)) { showNotification('Introduce un importe mayor que 0', 'warning'); return; }
     if (!dateValue) { showNotification('Elige una fecha', 'warning'); return; }
 
     const { month, day } = splitDate(dateValue);
-    // Los movimientos antiguos no tenían día: si no se tocó la fecha, se quedan sin día
-    const untouchedOldDate = !t.day && month === t.month && day === 1;
+    // Los movimientos antiguos no tenían día: si no se tocó la fecha, se quedan como estaban
+    if (month !== t.month || day !== (txDay(t) || 1)) { t.day = day; delete t._day; }
     t.month = month;
-    if (!untouchedOldDate) t.day = day;
     t.amount = amount;
     t.category = $('editCategory').value;
     t.account = $('editAccount').value;
@@ -835,108 +1054,111 @@ function saveEditedTransaction() {
     saveData();
     closeModal('editTransactionModal');
     refreshAll();
-    showNotification('Actualizada', 'success');
+    showNotification('Actualizado', 'success');
 }
 
-function deleteTransaction() {
+function deleteEditedTransaction() {
     const id = Number($('editTransactionId').value);
-    closeModal('editTransactionModal');
-    removeTransactionWithUndo(id);
-}
-
-function removeTransactionWithUndo(id) {
     const index = data.transactions.findIndex(t => t.id === id);
+    closeModal('editTransactionModal');
     if (index < 0) return;
     const [removed] = data.transactions.splice(index, 1);
     saveData();
     refreshAll();
-    showNotification(`Eliminado: ${removed.category} ${formatCurrency(removed.amount)}`, 'success', {
-        actionLabel: 'Deshacer',
-        duration: UNDO_DURATION,
-        onAction: () => {
-            data.transactions.splice(index, 0, removed);
-            saveData();
-            refreshAll();
-            showNotification('Restaurado', 'success');
-        }
-    });
+    undoable(`Eliminado: ${removed.category} ${formatCurrency(removed.amount)}`, () => data.transactions.splice(index, 0, removed));
+}
+
+// Copia el movimiento con fecha de hoy (para gastos que se repiten de vez en cuando)
+function duplicateTransaction() {
+    const t = editedTransaction();
+    if (!t) return;
+    const { month, day } = splitDate(todayISO());
+    const copy = { id: newId(), type: t.type, month, day, amount: t.amount, category: t.category, account: t.account, description: t.description, date: new Date().toISOString() };
+    data.transactions.push(copy);
+    saveData();
+    closeModal('editTransactionModal');
+    updateMonthFilter();
+    revealInList(copy);
+    refreshAll();
+    undoable(`Duplicado hoy: ${copy.category} ${formatCurrency(copy.amount)}`, () => { data.transactions = data.transactions.filter(x => x.id !== copy.id); });
 }
 
 // ============================================
 // MOVIMIENTOS RECURRENTES
 // ============================================
 
-function recurringLabel(r) {
-    return `${r.category}${r.description ? ' · ' + r.description : ''}`;
-}
+const recurringLabel = r => `${r.category}${r.description ? ' · ' + r.description : ''}`;
+const recurringMeta = r => `${r.type === 'income' ? 'Ingreso' : 'Gasto'} · ${escapeHtml(r.account)}${r.day ? ' · día ' + r.day : ''}`;
 
 function openRecurringModal() {
     renderRecurringPending();
-    openModal('recurringModal');
+    if (getPendingRecurring().length) openModal('recurringModal');
 }
 
 function renderRecurringPending() {
     const pending = getPendingRecurring();
-    setText('recurringModalTitle', `Recurrentes de ${formatMonth(getCurrentMonth())}`);
+    setText('recurringModalTitle', `Recurrentes de ${monthName(getCurrentMonth())}`);
     if (!pending.length) { closeModal('recurringModal'); return; }
     setHtml('recurringPendingList', pending.map(r => `
         <div class="recurring-item">
-            <div class="recurring-info">
-                <span class="transaction-category">${escapeHtml(recurringLabel(r))}</span>
-                <small>${r.type === 'income' ? 'Ingreso' : 'Gasto'} · ${escapeHtml(r.account)}${r.day ? ' · día ' + r.day : ''}</small>
-            </div>
-            <input type="text" id="rec-amount-${r.id}" value="${String(r.amount).replace('.', ',')}" inputmode="decimal" aria-label="Monto">
-            <div class="recurring-actions">
+            <div class="recurring-info"><strong>${escapeHtml(recurringLabel(r))}</strong><small>${recurringMeta(r)}</small></div>
+            <input type="text" id="rec-amount-${r.id}" value="${amountToInput(r.amount)}" inputmode="decimal" aria-label="Importe">
+            <div class="button-row">
                 <button class="btn-primary btn-small" data-action="addRecurring" data-id="${r.id}">Añadir</button>
                 <button class="btn-secondary btn-small" data-action="skipRecurring" data-id="${r.id}">Omitir</button>
             </div>
         </div>`).join(''));
 }
 
-function addRecurring(id, { silent = false } = {}) {
-    const r = data.recurring.find(r => r.id === id);
-    if (!r) return false;
-    const input = $(`rec-amount-${id}`);
+// Devuelve true si se añadió. No guarda ni repinta: lo hace quien llama
+function applyRecurring(r) {
+    const input = $(`rec-amount-${r.id}`);
     const amount = input ? parseAmount(input.value) : r.amount;
-    if (!(amount > 0)) { showNotification('Monto no válido', 'warning'); return false; }
+    if (!(amount > 0)) return false;
     const month = getCurrentMonth();
-    const day = r.day ? Math.min(r.day, daysInMonth(month)) : undefined;
+    const day = r.day ? Math.min(r.day, daysInMonth(month)) : new Date().getDate();
     data.transactions.push({ id: newId(), type: r.type, month, day, amount, category: r.category, account: r.account, description: r.description, date: new Date().toISOString() });
     r.lastMonth = month;
-    if (!silent) {
-        saveData();
-        refreshAll();
-        renderRecurringPending();
-        showNotification(`Añadido: ${recurringLabel(r)}`, 'success');
-    }
     return true;
 }
 
-function addAllRecurring() {
-    const added = getPendingRecurring().filter(r => addRecurring(r.id, { silent: true })).length;
+function afterRecurringChange() {
     saveData();
     refreshAll();
     renderRecurringPending();
-    if (added) showNotification(`${added} movimiento${added > 1 ? 's' : ''} añadido${added > 1 ? 's' : ''}`, 'success');
+}
+
+function addRecurring(id) {
+    const r = data.recurring.find(r => r.id === id);
+    if (!r) return;
+    if (!applyRecurring(r)) { showNotification('Importe no válido', 'warning'); return; }
+    afterRecurringChange();
+    showNotification(`Añadido: ${recurringLabel(r)}`, 'success');
+}
+
+function addAllRecurring() {
+    const pending = getPendingRecurring();
+    const added = pending.filter(applyRecurring).length;
+    afterRecurringChange();
+    if (added < pending.length) showNotification('Revisa los importes que no son válidos', 'warning');
+    else showNotification(plural(added, 'movimiento añadido', 'movimientos añadidos'), 'success');
 }
 
 function skipRecurring(id) {
     const r = data.recurring.find(r => r.id === id);
     if (!r) return;
     r.lastMonth = getCurrentMonth();
-    saveData();
-    refreshAll();
-    renderRecurringPending();
+    afterRecurringChange();
 }
 
 function editRecurringAmount(id) {
     const r = data.recurring.find(r => r.id === id);
     if (!r) return;
-    openEditModal(`Monto de ${recurringLabel(r)}`, r.amount, value => {
-        if (!(value > 0)) return 'Introduce un monto mayor que 0';
+    openEditModal(`Importe de ${recurringLabel(r)}`, r.amount, value => {
+        if (!(value > 0)) return 'Introduce un importe mayor que 0';
         r.amount = value;
         saveData();
-        renderSettings();
+        refreshAll();
         showNotification('Recurrente actualizado', 'success');
     });
 }
@@ -947,286 +1169,350 @@ function deleteRecurring(id) {
     const [removed] = data.recurring.splice(index, 1);
     saveData();
     refreshAll();
-    showNotification('Recurrente eliminado', 'success', {
-        actionLabel: 'Deshacer',
-        duration: UNDO_DURATION,
-        onAction: () => { data.recurring.splice(index, 0, removed); saveData(); refreshAll(); }
-    });
+    undoable('Recurrente eliminado', () => data.recurring.splice(index, 0, removed));
 }
 
 // ============================================
-// INVERSIONES
+// ESTADÍSTICAS
 // ============================================
 
-function renderInvestmentPanel() {
-    $('investmentSetup').style.display = data.setupComplete ? 'none' : 'block';
-    $('investmentPanel').style.display = data.setupComplete ? 'block' : 'none';
-    if (!data.setupComplete) return;
-    const breakdown = getInvestmentByCategory();
-    updateInvestmentSummary(breakdown);
-    renderBubbleChart(breakdown);
-    renderInvestmentsList();
-    renderExpenseCategories();
+function shiftStatsPeriod(delta) {
+    if (statsState.mode === 'year') statsState.year += delta;
+    else statsState.month = shiftMonth(statsState.month, delta);
+    renderStats();
 }
 
-function updateInvestmentSummary(breakdown) {
-    const emergencyReal = getEmergencyFundTotal();
-    const emergencyGoal = data.emergencyGoal || 5000;
-    const emergencyPercent = Math.min((emergencyReal / emergencyGoal) * 100, 100);
+function renderStats() {
+    const period = getPeriod(statsState.mode, statsState.month, statsState.year);
+    const cur = summarize(period.filter), prev = summarize(period.prevFilter);
 
-    setText('emergencyCurrentText', formatCurrency(emergencyReal));
-    setText('emergencyGoalText', formatCurrency(emergencyGoal));
-    $('emergencyBarFill').style.width = emergencyPercent + '%';
-    setText('emergencyPercentBig', emergencyPercent.toFixed(0) + '%');
-    $('emergencyCompleteMsg').style.display = emergencyReal >= emergencyGoal ? 'block' : 'none';
+    document.querySelectorAll('#statsMode button').forEach(b => b.classList.toggle('selected', b.dataset.value === period.mode));
+    setText('statsPeriodLabel', period.mode === 'month' && !DESKTOP.matches ? capitalize(shortMonthName(period.month)) + ' ' + period.month.slice(0, 4) : period.label);
+    $('statsToday').style.visibility = period.isCurrent ? 'hidden' : 'visible';
 
-    const totalInvested = Object.values(breakdown).reduce((s, a) => s + a, 0);
-    setText('invTotalInvested', formatCurrency(totalInvested));
-
-    // Valor actual total (usa lo aportado en las inversiones sin valor apuntado)
-    const entries = Object.entries(breakdown);
-    const anyValue = entries.some(([cat]) => data.investmentValues[cat]);
-    if (anyValue) {
-        const totalValue = entries.reduce((s, [cat, amount]) => s + getInvestmentStatus(cat, amount).value, 0);
-        const gain = totalValue - totalInvested;
-        const pct = totalInvested > 0 ? (gain / totalInvested) * 100 : 0;
-        setHtml('investmentValueSummary', `Valor actual: <strong>${formatCurrency(totalValue)}</strong>
-            <span class="${gain >= 0 ? 'positive' : 'negative'}">(${gain >= 0 ? '+' : ''}${formatCurrency(gain)} · ${gain >= 0 ? '+' : ''}${pct.toFixed(1)}%)</span>`);
-    } else {
-        setHtml('investmentValueSummary', '');
-    }
-
-    setHtml('investmentDistribution', entries.length && totalInvested > 0
-        ? entries.map(([cat, amount]) => `<div class="distribution-item"><span>${escapeHtml(cat)}</span><span>${((amount / totalInvested) * 100).toFixed(0)}%</span></div>`).join('')
-        : '<small>Sin inversiones</small>');
-
-    setText('availableThisMonth', formatCurrency(getAvailable()));
-    setText('availableBreakdown', `Patrimonio (${formatCurrency(getPatrimony())}) - Invertido (${formatCurrency(totalInvested)})`);
+    renderStatsKpis(period, cur, prev);
+    renderStatsCategories(period, cur);
+    renderPace(period);
+    renderEvolution(period);
+    setText('budgetTitle', 'Reparto ' + Object.values(data.categoryGroups).map(g => g.percent).join('/'));
+    setHtml('statsBudget', budgetHtml(period.filter));
+    renderTopExpenses(period);
+    renderAccounts(period, cur);
+    renderWeekdays(period);
 }
 
-function editEmergencyGoal() {
-    openEditModal('Meta Colchón', data.emergencyGoal, value => {
-        if (!(value > 0)) return 'Introduce una meta mayor que 0';
-        data.emergencyGoal = value;
-        saveData();
-        renderInvestmentPanel();
-        showNotification('Meta actualizada', 'success');
-    });
+function renderStatsKpis(period, cur, prev) {
+    const perDay = cur.expenses / Math.max(period.daysElapsed, 1);
+    const projection = perDay * period.daysTotal;
+    const showProjection = period.isCurrent && period.daysElapsed >= 3 && period.daysElapsed < period.daysTotal;
+    setHtml('statsKpis', [
+        kpiHtml({ cls: 'kpi-main', label: 'Gastado', value: formatCurrency(cur.expenses), sub: deltaBadge(cur.expenses, prev.expenses, period.prevLabel) || plural(cur.count, 'gasto', 'gastos') }),
+        kpiHtml({ label: 'Ingresos', value: formatCurrency(cur.income), tone: 'pos', sub: deltaBadge(cur.income, prev.income, period.prevLabel, false) }),
+        kpiHtml({
+            label: 'Ahorrado', value: formatCurrency(cur.saved), tone: cur.saved < 0 ? 'neg' : '',
+            sub: cur.savingsRate === null ? 'Sin ingresos' : `${formatPercent(cur.savingsRate)} de los ingresos` + (cur.invested ? ` · invertido ${formatRound(cur.invested)}` : '')
+        }),
+        kpiHtml({
+            label: 'Media diaria', value: formatCurrency(perDay),
+            sub: showProjection ? `A este ritmo: ${formatRound(projection)} a fin de ${period.mode === 'year' ? 'año' : 'mes'}` : plural(cur.count, 'gasto', 'gastos')
+        })
+    ].join(''));
 }
 
-function renderInvestmentsList() {
-    const investments = txWhere(isInvestment);
-    if (!investments.length) { setHtml('investmentsList', '<p class="empty-message">No hay inversiones registradas</p>'); return; }
-
-    const grouped = {};
-    investments.forEach(inv => (grouped[inv.category] ||= []).push(inv));
-
-    setHtml('investmentsList', Object.entries(grouped).map(([category, invs]) => {
-        const total = sumAmounts(invs);
-        const status = getInvestmentStatus(category, total);
-        const gain = status.value - total;
-        const pct = total > 0 ? (gain / total) * 100 : 0;
-        const valueLine = status.hasValue
-            ? `<div class="investment-value-line">Valor actual: <strong>${formatCurrency(status.value)}</strong>
-                <span class="${gain >= 0 ? 'positive' : 'negative'}">${gain >= 0 ? '+' : ''}${formatCurrency(gain)} (${gain >= 0 ? '+' : ''}${pct.toFixed(1)}%)</span>
-                <small>· ${status.stale ? '⚠️ desactualizado, has aportado después del' : 'actualizado el'} ${escapeHtml(formatDate(status.updated))}</small></div>`
-            : '';
-
-        const items = invs.sort(compareTransactions).map(inv => `
-            <div class="investment-item">
-                <div class="investment-item-row">
-                    <span class="investment-item-date">${escapeHtml(formatTxDate(inv))}</span>
-                    <span class="investment-item-amount">${formatCurrency(inv.amount)}</span>
-                </div>
-                ${inv.description ? `<div class="investment-item-description">${escapeHtml(inv.description)}</div>` : ''}
-                <div class="investment-item-actions">
-                    <button class="btn-secondary btn-small" data-action="editTransaction" data-id="${inv.id}">Editar</button>
-                    <button class="btn-danger btn-small" data-action="deleteTransaction" data-id="${inv.id}">Eliminar</button>
-                </div>
-            </div>`).join('');
-
-        return `<details class="investment-group">
-            <summary class="investment-group-header">
-                <span class="investment-group-category">${escapeHtml(category)} <small>(${invs.length})</small></span>
-                <span class="investment-group-total">Aportado ${formatCurrency(total)}</span>
-                <button class="btn-secondary btn-small" data-action="setInvestmentValue" data-value="${escapeHtml(category)}">Valor actual</button>
+// Ranking de categorías: barra proporcional, importe, % del total y cambio respecto al periodo anterior
+function renderStatsCategories(period, cur) {
+    const ranking = categoryRanking(period.filter, period.prevFilter);
+    if (!ranking.length) { setHtml('statsCategories', emptyHtml('Sin gastos en este periodo')); return; }
+    const max = ranking[0].total;
+    setHtml('statsCategories', ranking.map(r => `
+        <details class="rank">
+            <summary>
+                <span class="rank-name">${escapeHtml(r.category)}</span>
+                <span class="rank-meta">${plural(r.txs.length, 'gasto', 'gastos')} · media ${formatCurrency(r.total / r.txs.length)}</span>
+                <span class="rank-delta">${deltaBadge(r.total, r.prev, '')}</span>
+                <span class="rank-amount">${formatCurrency(r.total)}</span>
+                <span class="rank-pct">${formatPercent(r.total / cur.expenses * 100)}</span>
+                ${barHtml(r.total / max)}
             </summary>
-            ${valueLine}
-            ${items}
-        </details>`;
-    }).join(''));
-}
-
-function setInvestmentValue(category) {
-    const saved = data.investmentValues[category];
-    const contributed = sumAmounts(txWhere(isInvestment, t => t.category === category));
-    openEditModal(`Valor actual de ${category}`, saved ? saved.value : '', value => {
-        if (value === null) {
-            delete data.investmentValues[category];
-        } else {
-            if (value < 0) return 'El valor no puede ser negativo';
-            data.investmentValues[category] = { value, updated: new Date().toISOString() };
-        }
-        saveData();
-        renderInvestmentPanel();
-        showNotification('Valor actualizado', 'success');
-    }, { label: 'Valor hoy (€)', hint: `Aportado: ${formatCurrency(contributed)}. Déjalo vacío para quitar el valor.`, allowEmpty: true });
-}
-
-function renderBubbleChart(breakdown) {
-    const entries = Object.entries(breakdown);
-    if (!entries.length) {
-        setHtml('investmentBubbles', '<div class="empty-bubbles"><p>No hay inversiones</p><p class="empty-hint">Añade gastos en "Inversión"</p></div>');
-        return;
-    }
-    const maxAmount = Math.max(...entries.map(([, a]) => a));
-    setHtml('investmentBubbles', entries.map(([cat, amount], i) => {
-        const size = 80 + (amount / maxAmount) * 80;
-        return `<div class="bubble" style="width:${size}px;height:${size}px;background:${BUBBLE_COLORS[i % BUBBLE_COLORS.length]}" title="${escapeHtml(cat)}: ${formatCurrency(amount)}">
-            <span class="bubble-name">${escapeHtml(cat)}</span><span class="bubble-amount">${formatCurrency(amount)}</span>
-        </div>`;
-    }).join(''));
-}
-
-// ============================================
-// CATEGORÍAS DE GASTO
-// ============================================
-
-function renderExpenseCategories() {
-    setHtml('expenseCategoriesList', Object.values(data.categoryGroups).map(group => `
-        <details class="category-group" open>
-            <summary class="category-group-header">
-                <span class="category-group-title">${escapeHtml(group.name)}</span><span class="category-group-percent">${group.percent}%</span>
-            </summary>
-            <div class="category-tags">
-                ${group.categories.map(cat => `<span class="category-tag">
-                    <button class="category-name" data-action="editCategory" data-value="${escapeHtml(cat)}">${escapeHtml(cat)}</button>
-                    <button class="category-remove" data-action="removeCategory" data-value="${escapeHtml(cat)}" aria-label="Eliminar ${escapeHtml(cat)}">×</button>
-                </span>`).join('')}
+            <div class="rank-detail">
+                ${[...r.txs].sort((a, b) => b.amount - a.amount).slice(0, 40).map(t => miniTxHtml(t)).join('')}
+                ${r.txs.length > 40 ? `<p class="hint">…y ${r.txs.length - 40} más pequeños</p>` : ''}
             </div>
-        </details>`).join(''));
+        </details>`).join('')
+        + `<p class="hint rank-foot">Las flechas comparan con ${escapeHtml(period.prevLabel)}</p>`);
 }
 
-function groupOptionsHtml(selectedKey) {
-    return Object.entries(data.categoryGroups)
-        .map(([key, g]) => `<option value="${key}"${key === selectedKey ? ' selected' : ''}>${escapeHtml(g.name)} (${g.percent}%)</option>`).join('');
+function gridHtml(max) {
+    return `<div class="chart-grid" aria-hidden="true">
+        <span style="bottom:100%">${formatRound(max)}</span><span style="bottom:50%">${formatRound(max / 2)}</span><span style="bottom:0">0</span>
+    </div>`;
 }
 
-// Sin argumento: nueva categoría. Con nombre: renombrar / mover de grupo
-function openCategoryModal(category = '') {
-    const groupKey = category ? findCategoryGroup(category) : 'ocio';
-    $('categoryModalTitle').textContent = category ? 'Editar Categoría' : 'Nueva Categoría';
-    $('categoryOriginal').value = category;
-    $('categoryName').value = category;
-    $('categoryGroup').innerHTML = groupOptionsHtml(groupKey);
-    openModal('categoryModal', 'categoryName');
+// Gasto acumulado día a día de un mes: [0, día 1, día 2, ...]
+function cumulativeByDay(month) {
+    const days = new Array(daysInMonth(month) + 1).fill(0);
+    txWhere(isRealExpense, inMonth(month)).forEach(t => { days[Math.min(txDay(t) || 1, days.length - 1)] += t.amount; });
+    for (let i = 1; i < days.length; i++) days[i] += days[i - 1];
+    return days;
 }
 
-function saveCategory() {
-    const name = $('categoryName').value.trim();
-    const groupKey = $('categoryGroup').value;
-    const original = $('categoryOriginal').value;
-    if (!name) { showNotification('Ingresa un nombre', 'warning'); return; }
-    if (name !== original && getAllCategories().includes(name)) { showNotification('Ya existe', 'warning'); return; }
+// Línea de gasto acumulado del mes frente al mes anterior
+function renderPace(period) {
+    $('paceCard').style.display = period.mode === 'month' ? '' : 'none';
+    if (period.mode !== 'month') return;
+    const cur = cumulativeByDay(period.month), prev = cumulativeByDay(period.prevMonth);
+    const lastDay = period.daysElapsed;
+    const span = Math.max(cur.length, prev.length) - 2; // días − 1
+    const max = niceMax(Math.max(cur[lastDay] || 0, prev[prev.length - 1]));
+    if (!cur[cur.length - 1] && !prev[prev.length - 1]) { setHtml('statsPace', emptyHtml('Sin gastos en este mes ni en el anterior')); return; }
 
-    if (original) {
-        const oldKey = findCategoryGroup(original);
-        const oldList = data.categoryGroups[oldKey].categories;
-        const index = oldList.indexOf(original);
-        if (oldKey === groupKey) oldList[index] = name;
-        else { oldList.splice(index, 1); data.categoryGroups[groupKey].categories.push(name); }
-        if (name !== original) renameExpenseCategory(original, name);
+    const x = day => ((day - 1) / span) * 300;
+    const points = (series, until) => series.slice(1, until + 1).map((v, i) => `${x(i + 1).toFixed(1)},${(100 - (v / max) * 100).toFixed(1)}`).join(' ');
+    const curName = monthName(period.month), prevName = monthName(period.prevMonth);
+    const captionFor = day => {
+        const parts = [`Día ${day}`];
+        if (day <= lastDay) parts.push(`${curName}: ${formatCurrency(cur[day])}`);
+        if (day < prev.length) parts.push(`${prevName}: ${formatCurrency(prev[day])}`);
+        return parts.join(' · ');
+    };
+    const defaultDay = Math.max(lastDay, 1);
+    const diff = (cur[lastDay] || 0) - prev[Math.min(defaultDay, prev.length - 1)];
+    const summary = lastDay && prev[prev.length - 1]
+        ? (period.isCurrent ? `A día ${lastDay} llevas ${formatCurrency(cur[lastDay])}` : `En ${curName} gastaste ${formatCurrency(cur[lastDay])}`) + `: ${formatCurrency(Math.abs(diff))} ${diff > 0 ? 'más' : 'menos'} que en ${prevName}${period.isCurrent ? ' a estas alturas' : ''}.`
+        : captionFor(defaultDay);
+
+    setHtml('statsPace', `<div class="chart">
+        <div class="legend"><span><i class="swatch line cur"></i>${escapeHtml(curName)}</span><span><i class="swatch line prev"></i>${escapeHtml(prevName)}</span></div>
+        <div class="plot pace" id="pacePlot">
+            ${gridHtml(max)}
+            <svg viewBox="0 0 300 100" preserveAspectRatio="none" role="img" aria-label="Gasto acumulado de ${escapeHtml(curName)} frente a ${escapeHtml(prevName)}">
+                <polyline class="prev" points="${points(prev, prev.length - 1)}"/>
+                <polyline class="cur" points="${points(cur, lastDay)}"/>
+            </svg>
+            <i class="pace-cursor" id="paceCursor"></i>
+        </div>
+        <div class="pace-axis" aria-hidden="true">${[1, 8, 15, 22, 29].map(d => `<span style="left:${(x(d) / 300) * 100}%">${d}</span>`).join('')}</div>
+        <p class="chart-caption" data-default="${escapeHtml(summary)}">${escapeHtml(summary)}</p>
+    </div>`);
+
+    // Al mover el ratón o el dedo por la gráfica se ve el acumulado de ese día
+    const plot = $('pacePlot'), cursor = $('paceCursor'), caption = plot.parentElement.querySelector('.chart-caption');
+    const move = e => {
+        const rect = plot.getBoundingClientRect();
+        const day = Math.max(1, Math.min(span + 1, Math.round(((e.clientX - rect.left) / rect.width) * span) + 1));
+        cursor.style.left = (x(day) / 300) * 100 + '%';
+        cursor.classList.add('show');
+        caption.textContent = captionFor(day);
+    };
+    plot.addEventListener('pointermove', move);
+    plot.addEventListener('pointerdown', move);
+    plot.addEventListener('pointerleave', () => { cursor.classList.remove('show'); caption.textContent = summary; });
+}
+
+// Barras de ingresos y gastos por mes. Pulsar un mes lo abre
+function renderEvolution(period) {
+    let months;
+    if (period.mode === 'year') {
+        months = Array.from({ length: 12 }, (_, i) => `${statsState.year}-${pad(i + 1)}`);
     } else {
-        data.categoryGroups[groupKey].categories.push(name);
+        const count = DESKTOP.matches ? 12 : 6;
+        const current = getCurrentMonth();
+        // La ventana termina en el mes actual salvo que se esté mirando uno que quede fuera
+        const end = period.month > current || period.month <= shiftMonth(current, -count) ? period.month : current;
+        months = Array.from({ length: count }, (_, i) => shiftMonth(end, i - count + 1));
     }
+    const totals = {};
+    months.forEach(m => { totals[m] = { income: 0, expenses: 0 }; });
+    data.transactions.forEach(t => {
+        const m = totals[t.month];
+        if (!m) return;
+        const kind = txKind(t);
+        if (kind === 'income') m.income += t.amount;
+        else if (kind === 'expense') m.expenses += t.amount;
+    });
+    const max = niceMax(Math.max(...months.map(m => Math.max(totals[m].income, totals[m].expenses))));
+    const captionFor = m => `${capitalize(formatMonth(m))} · Ingresos ${formatCurrency(totals[m].income)} · Gastos ${formatCurrency(totals[m].expenses)} · Ahorro ${formatCurrency(totals[m].income - totals[m].expenses)}`;
+    const defaultCaption = period.mode === 'month' && totals[period.month] ? captionFor(period.month) : 'Pulsa un mes para verlo en detalle';
+
+    setHtml('statsEvolution', `<div class="chart">
+        <div class="legend"><span><i class="swatch income"></i>Ingresos</span><span><i class="swatch expense"></i>Gastos</span></div>
+        <div class="plot evo">
+            ${gridHtml(max)}
+            <div class="evo-cols">${months.map(m => `
+                <button class="evo-col${period.mode === 'month' && m === period.month ? ' selected' : ''}" data-action="statsPickMonth" data-value="${m}" data-caption="${escapeHtml(captionFor(m))}" aria-label="${escapeHtml(captionFor(m))}">
+                    <span class="evo-bars"><i class="income" style="height:${(totals[m].income / max) * 100}%"></i><i class="expense" style="height:${(totals[m].expenses / max) * 100}%"></i></span>
+                    <span class="evo-label">${escapeHtml(shortMonthName(m))}${m.endsWith('-01') && period.mode === 'month' ? ' ' + m.slice(2, 4) : ''}</span>
+                </button>`).join('')}
+            </div>
+        </div>
+        <p class="chart-caption" data-default="${escapeHtml(defaultCaption)}">${escapeHtml(defaultCaption)}</p>
+    </div>`);
+}
+
+// Reparto de los ingresos por grupos (p. ej. 15/15/70): cuánto llevas de cada parte
+function budgetHtml(filter) {
+    const income = sumAmounts(txWhere(isIncome, filter));
+    const spentByCategory = sumBy(txWhere(t => t.type === 'expense' && !isAdjustment(t), filter), t => t.category);
+    if (!income) return emptyHtml('Sin ingresos en este periodo: no hay nada que repartir');
+    return Object.entries(data.categoryGroups).map(([key, group]) => {
+        const target = income * (group.percent / 100);
+        const spent = group.categories.reduce((s, c) => s + (spentByCategory[c] || 0), 0);
+        const diff = target - spent;
+        const isGoal = key === 'inversion'; // aquí llegar al objetivo es bueno
+        const ok = isGoal ? diff <= 0.005 : diff >= -0.005;
+        const status = isGoal
+            ? (ok ? `✓ Objetivo cumplido` : `Faltan ${formatCurrency(diff)}`)
+            : (ok ? `✓ Quedan ${formatCurrency(diff)}` : `⚠ Pasado ${formatCurrency(-diff)}`);
+        return `<div class="budget">
+            <div class="budget-head"><span>${escapeHtml(group.name)} <small>${group.percent}%</small></span><span>${formatCurrency(spent)} <small>de ${formatCurrency(target)}</small></span></div>
+            ${barHtml(target > 0 ? spent / target : 0, isGoal ? (ok ? 'good' : '') : (ok ? 'good' : 'over'))}
+            <div class="budget-status ${ok ? 'good' : isGoal ? '' : 'bad'}">${status}</div>
+        </div>`;
+    }).join('');
+}
+
+function renderTopExpenses(period) {
+    const top = txWhere(isRealExpense, period.filter).sort((a, b) => b.amount - a.amount).slice(0, DESKTOP.matches ? 8 : 5);
+    setHtml('statsTop', top.length ? top.map(t => miniTxHtml(t, { showCategory: true })).join('') : emptyHtml('Sin gastos'));
+}
+
+function renderAccounts(period, cur) {
+    const totals = Object.entries(sumBy(txWhere(isRealExpense, period.filter), t => t.account)).sort((a, b) => b[1] - a[1]);
+    setHtml('statsAccounts', totals.length ? totals.map(([account, total]) => `
+        <div class="side-rank">
+            <span class="rank-name">${escapeHtml(account)}</span>
+            <span class="rank-amount">${formatCurrency(total)}</span>
+            <span class="rank-pct">${formatPercent(total / cur.expenses * 100)}</span>
+            ${barHtml(total / totals[0][1])}
+        </div>`).join('') : emptyHtml('Sin gastos'));
+}
+
+function renderWeekdays(period) {
+    const totals = new Array(7).fill(0);
+    txWhere(isRealExpense, period.filter).forEach(t => {
+        const day = txDay(t);
+        if (day) totals[(monthDate(t.month, day).getDay() + 6) % 7] += t.amount; // lunes = 0
+    });
+    const max = Math.max(...totals);
+    if (!max) { setHtml('statsWeekdays', emptyHtml('Sin gastos con fecha')); return; }
+    const top = totals.indexOf(max);
+    const summary = `Gastas más los ${WEEKDAY_NAMES[top].toLowerCase()}: ${formatCurrency(max)}`;
+    setHtml('statsWeekdays', `<div class="chart">
+        <div class="plot weekdays">${totals.map((v, i) => `
+            <span class="evo-col${i === top ? ' selected' : ''}" tabindex="0" data-caption="${WEEKDAY_NAMES[i]}: ${formatCurrency(v)}">
+                <span class="evo-bars"><i class="single" style="height:${(v / max) * 100}%"></i></span>
+                <span class="evo-label">${WEEKDAYS[i]}</span>
+            </span>`).join('')}
+        </div>
+        <p class="chart-caption" data-default="${escapeHtml(summary)}">${escapeHtml(summary)}</p>
+    </div>`);
+}
+
+// --- Reparto (%) ---
+function openBudgetModal() {
+    setHtml('budgetConfigList', Object.entries(data.categoryGroups).map(([key, group]) =>
+        `<div class="form-group"><label for="budget-${key}">${escapeHtml(group.name)} (%)</label><input type="number" id="budget-${key}" value="${group.percent}" min="0" max="100" step="1" inputmode="numeric"></div>`
+    ).join(''));
+    openModal('budgetModal');
+}
+
+function saveBudget() {
+    const values = Object.keys(data.categoryGroups).map(key => [key, Math.round(Number($('budget-' + key).value)) || 0]);
+    const total = values.reduce((s, [, v]) => s + v, 0);
+    // Se valida antes de tocar los datos para no dejar porcentajes a medias
+    if (total !== 100 || values.some(([, v]) => v < 0)) { showNotification(`Suman ${total}%, deben sumar 100%`, 'warning'); return; }
+    values.forEach(([key, v]) => { data.categoryGroups[key].percent = v; });
     saveData();
-    closeModal('categoryModal');
+    closeModal('budgetModal');
     refreshAll();
-    showNotification(original ? 'Categoría actualizada' : 'Añadida', 'success');
-}
-
-// Cambia la categoría en todos los gastos, recurrentes y valores de inversión
-function renameExpenseCategory(from, to) {
-    data.transactions.forEach(t => { if (t.type === 'expense' && t.category === from) t.category = to; });
-    data.recurring.forEach(r => { if (r.type === 'expense' && r.category === from) r.category = to; });
-    if (data.investmentValues[from]) {
-        if (!data.investmentValues[to]) data.investmentValues[to] = data.investmentValues[from];
-        delete data.investmentValues[from];
-    }
-}
-
-function countCategoryUsage(category) {
-    return data.transactions.filter(t => t.type === 'expense' && t.category === category).length
-        + data.recurring.filter(r => r.type === 'expense' && r.category === category).length;
-}
-
-function removeExpenseCategory(category) {
-    const groupKey = findCategoryGroup(category);
-    if (!groupKey) return;
-    const used = countCategoryUsage(category);
-    if (!used) {
-        if (!confirm(`¿Eliminar "${category}"?`)) return;
-        const list = data.categoryGroups[groupKey].categories;
-        list.splice(list.indexOf(category), 1);
-        saveData();
-        refreshAll();
-        showNotification('Eliminada', 'success');
-        return;
-    }
-    // En uso: hay que mover sus movimientos a otra categoría para no perderlos
-    $('reassignFrom').value = category;
-    $('reassignText').textContent = `"${category}" tiene ${used} movimiento${used > 1 ? 's' : ''}. Para no perderlos de las estadísticas, elige a qué categoría moverlos.`;
-    $('reassignTo').innerHTML = Object.values(data.categoryGroups)
-        .map(g => `<optgroup label="${escapeHtml(g.name)}">${optionsHtml(g.categories.filter(c => c !== category))}</optgroup>`).join('');
-    openModal('reassignCategoryModal');
-}
-
-function confirmReassignCategory() {
-    const from = $('reassignFrom').value;
-    const to = $('reassignTo').value;
-    const groupKey = findCategoryGroup(from);
-    if (!to || !groupKey) return;
-    renameExpenseCategory(from, to);
-    const list = data.categoryGroups[groupKey].categories;
-    list.splice(list.indexOf(from), 1);
-    saveData();
-    closeModal('reassignCategoryModal');
-    refreshAll();
-    showNotification(`"${from}" eliminada, movimientos movidos a "${to}"`, 'success');
+    showNotification('Reparto guardado', 'success');
 }
 
 // ============================================
-// AJUSTES (sección Datos)
+// VENTANA DE DETALLES (ingresos, ahorro, patrimonio)
+// ============================================
+
+function showDetailsPopup(type) {
+    const period = getPeriod('month', getCurrentMonth());
+    const cur = summarize(period.filter);
+    const prevFull = summarize(inMonth(period.prevMonth));
+    const year = getCurrentYear();
+    const yearly = summarize(inYear(year));
+    const row = (label, value, cls = '') => `<div class="detail-row"><span>${label}</span><strong class="${cls}">${value}</strong></div>`;
+    let title = '', html = '';
+
+    if (type === 'income') {
+        title = 'Ingresos';
+        const byCat = Object.entries(sumBy(txWhere(isIncome, period.filter), t => t.category)).sort((a, b) => b[1] - a[1]);
+        html = `<div class="detail-hero pos">${formatCurrency(cur.income)}</div>
+            <p class="hint center">${escapeHtml(period.label)}</p>
+            ${byCat.map(([cat, total]) => row(escapeHtml(cat), formatCurrency(total))).join('')}
+            <hr>
+            ${row(capitalize(monthName(period.prevMonth)), formatCurrency(prevFull.income))}
+            ${row(`Año ${year}`, formatCurrency(yearly.income))}`;
+    } else if (type === 'savings') {
+        title = 'Ahorro';
+        const all = summarize();
+        html = `<div class="detail-hero ${cur.saved < 0 ? 'neg' : ''}">${formatCurrency(cur.saved)}</div>
+            <p class="hint center">${cur.savingsRate === null ? 'Sin ingresos este mes' : `De cada 100 € que entran este mes, te quedas ${cur.savingsRate.toFixed(0)} €`}</p>
+            ${row('Ingresos', formatCurrency(cur.income), 'pos')}
+            ${row('Gastos', '−' + formatCurrency(cur.expenses), 'neg')}
+            ${cur.invested ? row('De lo ahorrado, invertido', formatCurrency(cur.invested)) : ''}
+            <hr>
+            ${row(capitalize(monthName(period.prevMonth)), `${formatCurrency(prevFull.saved)} · ${formatPercent(prevFull.savingsRate)}`)}
+            ${row(`Año ${year}`, `${formatCurrency(yearly.saved)} · ${formatPercent(yearly.savingsRate)}`)}
+            ${row('Histórico', `${formatCurrency(all.saved)} · ${formatPercent(all.savingsRate)}`)}`;
+    } else {
+        title = 'Patrimonio';
+        const p = getPatrimony();
+        html = `<div class="detail-hero">${formatCurrency(p.total)}</div>
+            <p class="hint center">Todo lo ingresado menos todo lo gastado</p>
+            ${row('Disponible', formatCurrency(p.available), p.available < 0 ? 'neg' : '')}
+            ${barHtml(p.total > 0 ? p.available / p.total : 0)}
+            ${row('Invertido (aportado)', formatCurrency(p.invested))}
+            ${barHtml(p.total > 0 ? p.invested / p.total : 0)}`;
+    }
+    setText('detailsTitle', title);
+    setHtml('detailsContent', html);
+    openModal('detailsModal');
+}
+
+// ============================================
+// AJUSTES
 // ============================================
 
 function renderSettings() {
     setText('lastBackupText', data.lastBackup
-        ? `Último backup: ${formatDate(data.lastBackup)} (hace ${daysSince(data.lastBackup)} días)`
-        : 'Aún no has hecho ningún backup');
+        ? `Último backup: ${formatDate(data.lastBackup)} (hace ${daysSince(data.lastBackup)} días). Tus datos solo están en este dispositivo.`
+        : 'Aún no has hecho ningún backup. Tus datos solo están en este dispositivo.');
 
-    const tags = (list, action) => list.map(v => `<span class="category-tag">${escapeHtml(v)}
-        <button class="category-remove" data-action="${action}" data-value="${escapeHtml(v)}" aria-label="Eliminar ${escapeHtml(v)}">×</button></span>`).join('');
-    setHtml('accountsList', tags(data.accounts, 'removeAccount'));
-    setHtml('incomeCategoriesList', tags(data.incomeCategories, 'removeIncomeCategory'));
+    const tag = (value, removeAction, editAction) => `<span class="tag">
+        ${editAction ? `<button class="tag-name" data-action="${editAction}" data-value="${escapeHtml(value)}">${escapeHtml(value)}</button>` : escapeHtml(value)}
+        <button class="tag-remove" data-action="${removeAction}" data-value="${escapeHtml(value)}" aria-label="Eliminar ${escapeHtml(value)}">×</button>
+    </span>`;
+    setHtml('accountsList', data.accounts.map(a => tag(a, 'removeAccount')).join(''));
+    setHtml('incomeCategoriesList', data.incomeCategories.map(c => tag(c, 'removeIncomeCategory')).join(''));
+    setHtml('expenseCategoriesList', Object.values(data.categoryGroups).map(group => `
+        <div class="category-group">
+            <div class="category-group-head"><span>${escapeHtml(group.name)}</span><small>${group.percent}% de los ingresos</small></div>
+            <div class="tags">${group.categories.map(c => tag(c, 'removeCategory', 'editCategory')).join('') || '<small class="hint">Sin categorías</small>'}</div>
+        </div>`).join(''));
 
     setHtml('recurringSettingsList', data.recurring.length ? data.recurring.map(r => `
         <div class="recurring-item">
-            <div class="recurring-info">
-                <span class="transaction-category">${escapeHtml(recurringLabel(r))}</span>
-                <small>${r.type === 'income' ? 'Ingreso' : 'Gasto'} · ${formatCurrency(r.amount)} · ${escapeHtml(r.account)}${r.day ? ' · día ' + r.day : ''}</small>
-            </div>
-            <div class="recurring-actions">
-                <button class="btn-secondary btn-small" data-action="editRecurringAmount" data-id="${r.id}">Monto</button>
+            <div class="recurring-info"><strong>${escapeHtml(recurringLabel(r))}</strong><small>${formatCurrency(r.amount)} · ${recurringMeta(r)}</small></div>
+            <div class="button-row">
+                <button class="btn-secondary btn-small" data-action="editRecurringAmount" data-id="${r.id}">Importe</button>
                 <button class="btn-danger btn-small" data-action="deleteRecurring" data-id="${r.id}">Eliminar</button>
             </div>
-        </div>`).join('') : '<p class="empty-message">No tienes movimientos recurrentes</p>');
+        </div>`).join('') : emptyHtml('No tienes movimientos recurrentes'));
 }
 
 function addListItem(listKey, inputId) {
     const input = $(inputId);
     const value = input.value.trim();
     if (!value) return;
-    if (data[listKey].includes(value)) { showNotification('Ya existe', 'warning'); return; }
+    if (data[listKey].some(v => normalizeText(v) === normalizeText(value))) { showNotification('Ya existe', 'warning'); return; }
     data[listKey].push(value);
     input.value = '';
     saveData();
@@ -1242,212 +1528,144 @@ function removeListItem(listKey, value) {
     refreshAll();
 }
 
-// ============================================
-// ESTADÍSTICAS
-// ============================================
+// --- Categorías de gasto ---
 
-async function updateStats() {
-    updateDistributionCard();
-    updateDistributionChartLabels();
-    try {
-        await loadChartJs();
-        $('chartsError').style.display = 'none';
-    } catch {
-        $('chartsError').style.display = 'block';
-        return;
+// Sin argumento: nueva categoría. Con nombre: renombrar / mover de grupo
+function openCategoryModal(category = '') {
+    const groupKey = category ? findCategoryGroup(category) : 'ocio';
+    setText('categoryModalTitle', category ? 'Editar categoría' : 'Nueva categoría');
+    $('categoryOriginal').value = category;
+    $('categoryName').value = category;
+    $('categoryGroup').innerHTML = Object.entries(data.categoryGroups)
+        .map(([key, g]) => `<option value="${key}"${key === groupKey ? ' selected' : ''}>${escapeHtml(g.name)}</option>`).join('');
+    openModal('categoryModal', category ? null : 'categoryName');
+}
+
+function saveCategory() {
+    const name = $('categoryName').value.trim();
+    const groupKey = $('categoryGroup').value;
+    const original = $('categoryOriginal').value;
+    if (!name) { showNotification('Escribe un nombre', 'warning'); return; }
+    if (name !== original && getAllCategories().some(c => normalizeText(c) === normalizeText(name) && c !== original)) { showNotification('Ya existe una categoría con ese nombre', 'warning'); return; }
+
+    if (original) {
+        const oldKey = findCategoryGroup(original);
+        if (!oldKey) return;
+        const oldList = data.categoryGroups[oldKey].categories;
+        const index = oldList.indexOf(original);
+        if (oldKey === groupKey) oldList[index] = name;
+        else { oldList.splice(index, 1); data.categoryGroups[groupKey].categories.push(name); }
+        if (name !== original) renameExpenseCategory(original, name);
+    } else {
+        data.categoryGroups[groupKey].categories.push(name);
     }
-    if (currentSection !== 'estadisticas') return;
-    updateEvolutionChart();
-    updateDistributionChart();
-}
-
-let chartJsPromise = null;
-function loadChartJs() {
-    if (window.Chart) return Promise.resolve();
-    if (!chartJsPromise) {
-        chartJsPromise = new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = CHART_JS_URL;
-            script.onload = resolve;
-            script.onerror = () => { chartJsPromise = null; script.remove(); reject(new Error('No se pudo cargar Chart.js')); };
-            document.head.appendChild(script);
-        });
-    }
-    return chartJsPromise;
-}
-
-function updateDistributionCard() {
-    const month = distributionState.currentMonth;
-    const groups = Object.entries(data.categoryGroups);
-    setText('distributionTitle', 'Distribución ' + groups.map(([, g]) => g.percent).join('/'));
-    setText('distributionMonthLabel', formatMonth(month));
-
-    const monthIncome = sumAmounts(txWhere(isIncome, inMonth(month)));
-    setText('distMonthIncome', formatCurrency(monthIncome));
-
-    const monthExpenses = txWhere(t => t.type === 'expense' && !isAdjustment(t), inMonth(month));
-    setHtml('distributionGroups', groups.map(([key, group]) => {
-        const target = monthIncome * (group.percent / 100);
-        const spent = sumAmounts(monthExpenses.filter(t => group.categories.includes(t.category)));
-        const percent = target > 0 ? (spent / target) * 100 : 0;
-        const isOver = spent > target;
-        const diff = Math.abs(target - spent);
-        return `<div class="distribution-group">
-            <div class="distribution-group-header"><span class="distribution-group-title">${escapeHtml(group.name)} (${group.percent}%)</span><span class="distribution-group-target">${formatCurrency(target)}</span></div>
-            <div class="distribution-progress"><div class="progress-bar-container"><div class="progress-bar-fill ${isOver ? 'over' : 'under'}" style="width:${Math.min(percent, 100)}%"></div></div></div>
-            <div class="distribution-stats"><span>${formatCurrency(spent)} ${key === 'inversion' ? 'movidos' : 'gastados'}</span><span class="distribution-status ${isOver ? 'negative' : 'positive'}">${isOver ? '¡Pasado ' + formatCurrency(diff) + '!' : 'Faltan ' + formatCurrency(diff)}</span></div>
-        </div>`;
-    }).join(''));
-}
-
-function changeDistributionMonth(delta) {
-    distributionState.currentMonth = shiftMonth(distributionState.currentMonth, delta);
-    updateDistributionCard();
-}
-
-function editDistributionConfig() {
-    setHtml('distributionConfigList', Object.entries(data.categoryGroups).map(([key, group]) =>
-        `<div class="form-group"><label for="config-${key}">${escapeHtml(group.name)}</label><input type="number" id="config-${key}" value="${group.percent}" min="0" max="100" inputmode="numeric"></div>`
-    ).join(''));
-    openModal('distributionConfigModal');
-}
-
-function saveDistributionConfig() {
-    const values = Object.keys(data.categoryGroups).map(key => [key, parseInt($('config-' + key).value) || 0]);
-    const total = values.reduce((s, [, v]) => s + v, 0);
-    // Valida antes de tocar los datos para no dejar porcentajes a medias
-    if (total !== 100) { showNotification(`Suman ${total}%, deben ser 100%`, 'warning'); return; }
-    values.forEach(([key, v]) => { data.categoryGroups[key].percent = v; });
     saveData();
-    closeModal('distributionConfigModal');
+    closeModal('categoryModal');
     refreshAll();
-    showNotification('Guardado', 'success');
+    showNotification(original ? 'Categoría actualizada' : 'Categoría añadida', 'success');
 }
 
-// Crea la gráfica la primera vez y después solo actualiza sus datos
-function upsertChart(chart, canvasId, config) {
-    if (chart) {
-        chart.data = config.data;
-        chart.update();
-        return chart;
-    }
-    return new Chart($(canvasId), config);
+// Cambia la categoría en todos los gastos y recurrentes
+function renameExpenseCategory(from, to) {
+    [...data.transactions, ...data.recurring].forEach(item => { if (item.type === 'expense' && item.category === from) item.category = to; });
 }
 
-function updateEvolutionChart() {
-    const months = Array.from({ length: 12 }, (_, i) => shiftMonth(getCurrentMonth(), i - 11));
-    const incomeByMonth = sumBy(txWhere(isIncome), t => t.month);
-    const expenseByMonth = sumBy(txWhere(isRealExpense), t => t.month);
-
-    evolutionChart = upsertChart(evolutionChart, 'evolutionChart', {
-        type: 'line',
-        data: {
-            labels: months.map(formatShortMonth),
-            datasets: [
-                { label: 'Ingresos', data: months.map(m => incomeByMonth[m] || 0), borderColor: '#6b8e6b', backgroundColor: 'rgba(107,142,107,0.1)', tension: 0.4, fill: true },
-                { label: 'Gastos', data: months.map(m => expenseByMonth[m] || 0), borderColor: '#b05a5a', backgroundColor: 'rgba(139,74,74,0.1)', tension: 0.4, fill: true }
-            ]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { labels: { color: '#e8e8e8' } } },
-            scales: { y: { beginAtZero: true, ticks: { color: '#b8b8b8' }, grid: { color: '#333' } }, x: { ticks: { color: '#b8b8b8' }, grid: { color: '#333' } } }
-        }
-    });
+function removeCategoryFromGroup(category) {
+    const list = data.categoryGroups[findCategoryGroup(category)].categories;
+    list.splice(list.indexOf(category), 1);
 }
 
-function updateDistributionChartLabels() {
-    const label = chartState.isYearly ? String(chartState.currentYear) : formatMonth(chartState.currentMonth);
-    setText('chartPeriodLabel', label);
-    setText('toggleChartView', chartState.isYearly ? 'Ver Mensual' : 'Ver Anual');
-    setText('distributionChartTitle', 'Gastos ' + label);
-}
-
-function updateDistributionChart() {
-    if (!window.Chart) return;
-    const periodFilter = chartState.isYearly ? inYear(chartState.currentYear) : inMonth(chartState.currentMonth);
-    const totals = Object.entries(sumBy(txWhere(isRealExpense, periodFilter), t => t.category)).sort((a, b) => b[1] - a[1]);
-    const isEmpty = totals.length === 0;
-
-    $('distributionChartEmpty').style.display = isEmpty ? 'block' : 'none';
-    $('distributionChartWrap').style.display = isEmpty ? 'none' : 'block';
-    if (isEmpty) {
-        if (distributionChart) { distributionChart.destroy(); distributionChart = null; }
+function removeExpenseCategory(category) {
+    if (!findCategoryGroup(category)) return;
+    const used = [...data.transactions, ...data.recurring].filter(item => item.type === 'expense' && item.category === category).length;
+    if (!used) {
+        if (!confirm(`¿Eliminar "${category}"?`)) return;
+        removeCategoryFromGroup(category);
+        saveData();
+        refreshAll();
+        showNotification('Categoría eliminada', 'success');
         return;
     }
-
-    distributionChart = upsertChart(distributionChart, 'distributionChart', {
-        type: 'doughnut',
-        data: {
-            labels: totals.map(([cat]) => cat),
-            datasets: [{ data: totals.map(([, v]) => v), backgroundColor: totals.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]) }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: {
-                legend: { position: window.innerWidth < 768 ? 'bottom' : 'right', labels: { color: '#e8e8e8', padding: 15 } },
-                tooltip: { callbacks: { label: ctx => `${ctx.label}: ${formatCurrency(ctx.parsed)}` } }
-            }
-        }
-    });
+    // En uso: hay que mover sus movimientos a otra categoría para no perderlos
+    $('reassignFrom').value = category;
+    setText('reassignText', `"${category}" tiene ${plural(used, 'movimiento', 'movimientos')}. Elige a qué categoría moverlos para no perderlos de las estadísticas.`);
+    $('reassignTo').innerHTML = categoryOptionsHtml('expense', null, category);
+    openModal('reassignCategoryModal');
 }
 
-function toggleChartView() {
-    chartState.isYearly = !chartState.isYearly;
-    updateDistributionChartLabels();
-    updateDistributionChart();
-}
-
-function changeChartPeriod(delta) {
-    if (chartState.isYearly) chartState.currentYear += delta;
-    else chartState.currentMonth = shiftMonth(chartState.currentMonth, delta);
-    updateDistributionChartLabels();
-    updateDistributionChart();
+function confirmReassignCategory() {
+    const from = $('reassignFrom').value;
+    const to = $('reassignTo').value;
+    if (!to || !findCategoryGroup(from)) return;
+    renameExpenseCategory(from, to);
+    removeCategoryFromGroup(from);
+    saveData();
+    closeModal('reassignCategoryModal');
+    refreshAll();
+    showNotification(`"${from}" eliminada, movimientos movidos a "${to}"`, 'success');
 }
 
 // ============================================
-// CALCULADORAS
+// EXPORTAR / IMPORTAR / BORRAR
 // ============================================
 
-function readNumber(id) {
-    return parseAmount($(id).value);
+function downloadFile(content, name, type) {
+    const url = URL.createObjectURL(new Blob([content], { type }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function calculateMortgage() {
-    const price = readNumber('housePrice'), down = readNumber('downPayment') ?? 0;
-    const rate = readNumber('interestRate'), years = readNumber('years');
-    if (!(price > 0) || rate === null || rate < 0 || !(years > 0) || down < 0 || down >= price) { showNotification('Revisa los campos', 'warning'); return; }
-    const principal = price - down, monthlyRate = rate / 100 / 12, n = Math.round(years * 12);
-    const monthlyPayment = monthlyRate === 0 ? principal / n : principal * (monthlyRate * Math.pow(1 + monthlyRate, n)) / (Math.pow(1 + monthlyRate, n) - 1);
-    const totalPayment = monthlyPayment * n;
-    setHtml('mortgageResult', `<strong>Préstamo:</strong> ${formatCurrency(principal)}<br><strong>Pago mensual:</strong> ${formatCurrency(monthlyPayment)}<br><strong>Total:</strong> ${formatCurrency(totalPayment)}<br><strong>Intereses:</strong> ${formatCurrency(totalPayment - principal)}`);
+function exportData() {
+    data.lastBackup = new Date().toISOString();
+    saveData();
+    downloadFile(JSON.stringify(data, null, 2), `finanzas_backup_${todayISO()}.json`, 'application/json');
+    backupBannerDismissed = false;
+    renderBanners();
+    if (currentSection === 'ajustes') renderSettings();
+    showNotification('Backup descargado', 'success');
 }
 
-function calculateEmergencyFund() {
-    const monthly = readNumber('calcMonthlyExpenses'), months = readNumber('monthsCoverage');
-    if (!(monthly > 0) || !(months > 0)) { showNotification('Revisa los campos', 'warning'); return; }
-    setHtml('emergencyFundResult', `<strong>Recomendado:</strong> ${formatCurrency(monthly * months)}<br><small>${months} meses × ${formatCurrency(monthly)}</small>`);
+// Para abrir en Excel / Google Sheets
+function exportCsv() {
+    const kinds = { income: 'Ingreso', expense: 'Gasto', investment: 'Inversión', adjustment: 'Ajuste' };
+    // Comillas para los separadores y apóstrofo ante fórmulas (=, +, -, @) por seguridad al abrirlo
+    const cell = v => { const s = String(v ?? ''); return `"${(/^[=+\-@]/.test(s) ? "'" + s : s).replace(/"/g, '""')}"`; };
+    const rows = [...data.transactions].sort(compareTransactions).map(t =>
+        [`${t.month}-${pad(txDay(t) || 1)}`, kinds[txKind(t)], t.category, t.account, t.description, amountToInput(t.amount.toFixed(2))].map(cell).join(';'));
+    downloadFile('﻿' + ['Fecha;Tipo;Categoría;Cuenta;Nota;Importe', ...rows].join('\r\n'), `finanzas_${todayISO()}.csv`, 'text/csv;charset=utf-8');
+    showNotification('CSV descargado', 'success');
 }
 
-function calculateCAGR() {
-    const initial = readNumber('initialValue'), final = readNumber('finalValue'), years = readNumber('cagrYears');
-    if (!(initial > 0) || final === null || final < 0 || !(years > 0)) { showNotification('Revisa los campos', 'warning'); return; }
-    setHtml('cagrResult', `<strong>CAGR:</strong> ${((Math.pow(final / initial, 1 / years) - 1) * 100).toFixed(2)}%`);
+async function importData() {
+    const input = $('importFile');
+    const file = input.files[0];
+    input.value = ''; // permite volver a elegir el mismo archivo
+    if (!file) return;
+    try {
+        const imported = JSON.parse(await file.text());
+        if (!imported || !Array.isArray(imported.transactions)) throw new Error('no es un backup de esta app');
+        if (!confirm(`¿Reemplazar tus datos actuales por este backup (${imported.transactions.length} movimientos)?`)) return;
+        data = normalizeData(imported).normalized;
+        if (saveData()) location.reload();
+    } catch (err) {
+        showNotification('No se pudo cargar: ' + (err instanceof SyntaxError ? 'el archivo no es un JSON válido' : err.message), 'error', { duration: 6000 });
+    }
 }
 
-function calculateCompoundInterest() {
-    const initial = readNumber('ciInitial') ?? 0, monthly = readNumber('ciMonthly') ?? 0;
-    const rate = readNumber('ciRate'), years = readNumber('ciYears');
-    if (initial < 0 || monthly < 0 || initial + monthly <= 0 || rate === null || rate < 0 || !(years > 0)) { showNotification('Revisa los campos', 'warning'); return; }
-    const r = rate / 100 / 12, n = Math.round(years * 12);
-    const growth = Math.pow(1 + r, n);
-    const total = r === 0 ? initial + monthly * n : initial * growth + monthly * ((growth - 1) / r);
-    const totalInvested = initial + monthly * n;
-    setHtml('ciResult', `<strong>Invertido:</strong> ${formatCurrency(totalInvested)}<br><strong>Intereses:</strong> ${formatCurrency(total - totalInvested)}<br><strong>Total:</strong> ${formatCurrency(total)}`);
+function resetData() {
+    if (prompt('Esto borra TODO. Haz un backup antes.\nEscribe "BORRAR TODO" para confirmar:') === 'BORRAR TODO') {
+        localStorage.removeItem(STORAGE_KEY);
+        location.reload();
+    }
 }
 
 // ============================================
-// MODALES Y NOTIFICACIONES
+// VENTANAS Y NOTIFICACIONES
 // ============================================
 
 // Botón "Atrás" del móvil: cierra la ventana abierta (o vuelve un paso en el asistente)
@@ -1467,11 +1685,8 @@ window.addEventListener('popstate', () => {
     modalHistoryEntry = false;
     const top = modalStack[modalStack.length - 1];
     if (!top) return;
-    if (top === 'addTransactionModal' && wiz && wiz.step > 0) {
-        wizardBack();
-    } else {
-        closeModal(top, { fromHistory: true });
-    }
+    if (top === 'addTransactionModal' && wiz && wiz.step > 0) wizardBack();
+    else closeModal(top, { fromHistory: true });
     if (modalStack.length) pushModalHistory();
 });
 
@@ -1488,10 +1703,11 @@ function openModal(id, focusId) {
 
 function closeModal(id, { fromHistory = false } = {}) {
     const el = $(id);
-    if (!el.classList.contains('active')) return;
+    if (!el || !el.classList.contains('active')) return;
     el.classList.remove('active');
     const i = modalStack.lastIndexOf(id);
     if (i >= 0) modalStack.splice(i, 1);
+    if (id === 'addTransactionModal') wiz = null;
     if (modalStack.length) return;
     document.body.classList.remove('modal-open');
     // Se espera un instante por si se abre otra ventana justo después (no tocar el historial)
@@ -1505,28 +1721,27 @@ function closeModal(id, { fromHistory = false } = {}) {
 }
 
 // callback(valor) puede devolver un texto de error para no cerrar la ventana
-function openEditModal(title, currentValue, callback, { label = 'Cantidad (€)', hint = '', allowEmpty = false } = {}) {
+function openEditModal(title, currentValue, callback) {
     setText('editValueTitle', title);
-    setText('editValueLabel', label);
-    setText('editValueHint', hint);
-    $('editValueInput').value = String(currentValue).replace('.', ',');
-    editValueCallback = { callback, allowEmpty };
+    $('editValueInput').value = amountToInput(currentValue);
+    editValueCallback = callback;
     openModal('editValueModal', 'editValueInput');
 }
 
 function saveEditValue() {
     if (!editValueCallback) return;
-    const raw = $('editValueInput').value.trim();
-    const value = parseAmount(raw);
-    if (value === null && !(raw === '' && editValueCallback.allowEmpty)) { showNotification('Introduce un número válido', 'warning'); return; }
-    const error = editValueCallback.callback(value);
+    const value = parseAmount($('editValueInput').value);
+    if (value === null) { showNotification('Introduce un número válido', 'warning'); return; }
+    const error = editValueCallback(value);
     if (error) { showNotification(error, 'warning'); return; }
     editValueCallback = null;
     closeModal('editValueModal');
 }
 
+let notificationTimer = null;
 function showNotification(message, type = 'info', { actionLabel, onAction, duration = 3000 } = {}) {
     document.querySelector('.notification')?.remove();
+    clearTimeout(notificationTimer);
     const n = document.createElement('div');
     n.className = `notification ${type}`;
     n.setAttribute('role', 'status');
@@ -1544,136 +1759,12 @@ function showNotification(message, type = 'info', { actionLabel, onAction, durat
     }
 
     const close = document.createElement('button');
+    close.className = 'notification-close';
     close.textContent = '×';
     close.setAttribute('aria-label', 'Cerrar');
     close.onclick = () => n.remove();
     n.append(close);
 
     document.body.appendChild(n);
-    setTimeout(() => n.remove(), duration);
-}
-
-// ============================================
-// VENTANA DE DETALLES
-// ============================================
-
-function showDetailsPopup(type) {
-    const month = getCurrentMonth(), year = getCurrentYear();
-    const prevMonth = shiftMonth(month, -1);
-    const prevLabel = monthName(prevMonth);
-    const cur = getMonthSummary(month), prev = getMonthSummary(prevMonth);
-    let title = '', html = '';
-
-    if (type === 'income') {
-        title = 'Ingresos';
-        const yearly = sumAmounts(txWhere(isIncome, inYear(year)));
-        html = `<div class="details-center">
-            <p><strong>Este mes:</strong> <span class="positive">${formatCurrency(cur.income)}</span></p>
-            <p>${deltaBadge(cur.income, prev.income, prevLabel, false) || '&nbsp;'}</p>
-            <p><strong>Mes anterior:</strong> ${formatCurrency(prev.income)}</p>
-            <p><strong>Año ${year}:</strong> <span class="positive">${formatCurrency(yearly)}</span></p>
-        </div>`;
-    } else if (type === 'expenses') {
-        title = 'Gastos';
-        const monthTx = txWhere(isRealExpense, inMonth(month));
-        const prevByCat = sumBy(txWhere(isRealExpense, inMonth(prevMonth)), t => t.category);
-        const yearly = sumAmounts(txWhere(isRealExpense, inYear(year)));
-        const byCat = {};
-        monthTx.forEach(t => (byCat[t.category] ||= []).push(t));
-        const sorted = Object.entries(byCat).map(([cat, txs]) => [cat, txs, sumAmounts(txs)]).sort((a, b) => b[2] - a[2]);
-
-        const breakdown = sorted.map(([cat, txs, total]) => `
-            <details class="details-breakdown-group">
-                <summary class="details-breakdown-item">
-                    <span>${escapeHtml(cat)}</span>
-                    <span class="details-breakdown-right">
-                        ${deltaBadge(total, prevByCat[cat], prevLabel, true)}
-                        <span class="negative">${formatCurrency(total)}</span>
-                    </span>
-                </summary>
-                <div class="details-breakdown-detail">
-                    ${[...txs].sort((a, b) => b.amount - a.amount).map(t => `
-                        <div class="details-breakdown-sub" data-action="editTransaction" data-id="${t.id}">
-                            <span class="sub-desc">${escapeHtml(t.description || '—')}</span>
-                            <span class="sub-account">${escapeHtml(t.account || 'Efectivo')}</span>
-                            <span class="negative sub-amount">${formatCurrency(t.amount)}</span>
-                        </div>`).join('')}
-                </div>
-            </details>`).join('');
-
-        html = `<div class="details-center">
-                <p><strong>Este mes:</strong> <span class="negative">${formatCurrency(cur.expenses)}</span></p>
-                <p>${deltaBadge(cur.expenses, prev.expenses, prevLabel, true) || '&nbsp;'}</p>
-                <p><strong>Año ${year}:</strong> <span class="negative">${formatCurrency(yearly)}</span></p>
-                ${sorted.length ? '<hr><p class="card-hint">Desglose — pulsa para expandir</p>' : ''}
-            </div>
-            <div class="details-breakdown">${breakdown}</div>`;
-    } else if (type === 'savings') {
-        title = 'Tasa de Ahorro';
-        const total = getTotalSavingsRate();
-        html = `<div class="details-center">
-            <h2 class="highlight">${formatPercent(cur.savingsRate)}</h2>
-            <p class="details-subtitle">${cur.savingsRate === null ? 'Sin ingresos este mes' : `Este mes, de cada 100€ ahorras ${cur.savingsRate.toFixed(0)}€`}</p>
-            <hr>
-            <p><strong>Mes anterior:</strong> ${formatPercent(prev.savingsRate)}</p>
-            <p><strong>Histórico:</strong> ${formatPercent(total)}</p>
-        </div>`;
-    } else if (type === 'patrimony') {
-        title = 'Patrimonio';
-        const p = getPatrimony(), i = getTotalInvested(), a = getAvailable();
-        html = `<div class="details-center"><h2 class="highlight">${formatCurrency(p)}</h2><p class="details-subtitle">Ingresos - Gastos reales</p></div>
-            <div class="patrimony-bubbles">
-                <div class="patrimony-bubble" style="background:#6b8e6b"><span class="patrimony-bubble-name">Invertido</span><span class="patrimony-bubble-amount">${formatCurrency(i)}</span></div>
-                <div class="patrimony-bubble" style="background:${a >= 0 ? '#4a90a4' : '#8b4a4a'}"><span class="patrimony-bubble-name">Disponible</span><span class="patrimony-bubble-amount">${formatCurrency(a)}</span></div>
-            </div>`;
-    }
-    setText('detailsTitle', title);
-    setHtml('detailsContent', html);
-    openModal('detailsModal');
-}
-
-// ============================================
-// EXPORTAR / IMPORTAR / BORRAR
-// ============================================
-
-function exportData() {
-    data.lastBackup = new Date().toISOString();
-    saveData();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `finanzas_backup_${todayISO()}.json`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    backupBannerDismissed = false;
-    renderBanners();
-    if (currentSection === 'datos') renderSettings();
-    showNotification('Backup descargado', 'success');
-}
-
-function importData() {
-    const file = $('importFile').files[0];
-    if (!file) { showNotification('Selecciona un archivo', 'warning'); return; }
-    const reader = new FileReader();
-    reader.onload = e => {
-        try {
-            const imported = JSON.parse(e.target.result);
-            if (!Array.isArray(imported.transactions)) throw new Error('Archivo inválido');
-            if (!confirm(`¿Reemplazar tus datos actuales por este backup (${imported.transactions.length} movimientos)?`)) return;
-            data = normalizeData(imported).normalized;
-            saveData();
-            location.reload();
-        } catch (err) {
-            showNotification('Error: ' + err.message, 'error');
-        }
-    };
-    reader.readAsText(file);
-}
-
-function resetData() {
-    if (prompt('Esto borra TODO. Haz un backup antes.\nEscribe "BORRAR TODO" para confirmar:') === 'BORRAR TODO') {
-        localStorage.removeItem(STORAGE_KEY);
-        location.reload();
-    }
+    notificationTimer = setTimeout(() => n.remove(), duration);
 }
